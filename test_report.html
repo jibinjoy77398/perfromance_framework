@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Report — Test Site</title>
+  
+<style>
+  :root {
+    --bg-color: #0B1120;
+    --card-bg: rgba(30, 41, 59, 0.4);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --accent: linear-gradient(135deg, #818CF8, #C084FC);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-color);
+    background-image: radial-gradient(circle at top right, rgba(129,140,248,0.1), transparent 400px),
+                      radial-gradient(circle at bottom left, rgba(16,185,129,0.05), transparent 400px);
+    color: var(--text-main);
+    min-height: 100vh;
+    padding: 3rem 1.5rem;
+    line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  
+  /* Typography */
+  h1 { font-size: 2.75rem; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 0.5rem;
+       background: var(--accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  h2 { font-size: 1.25rem; font-weight: 700; color: #E2E8F0; margin: 2.5rem 0 1rem;
+       display: flex; align-items: center; gap: 0.5rem; }
+  h2::before { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; background: #818CF8; }
+  .subtitle { color: var(--text-muted); font-size: 1rem; margin-bottom: 3rem; font-weight: 500; }
+  
+  /* Glassmorphic Cards */
+  .card { 
+    background: var(--card-bg); 
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border); 
+    border-radius: 20px; 
+    padding: 2rem; 
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    margin-bottom: 1.5rem;
+  }
+
+  /* Scorecard Hero */
+  .scorecard { display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+  .grade-badge {
+    display: flex; align-items: center; justify-content: center;
+    width: 100px; height: 100px; border-radius: 50%;
+    font-size: 3.5rem; font-weight: 900; 
+    background: var(--card-bg);
+    border: 4px solid var(--grade-color);
+    color: var(--grade-color);
+    box-shadow: 0 0 30px var(--grade-shadow), inset 0 0 20px var(--grade-shadow);
+    text-shadow: 0 0 10px var(--grade-shadow);
+    animation: pulseGlow 3s infinite alternate;
+  }
+  @keyframes pulseGlow { from { box-shadow: 0 0 20px var(--grade-shadow); } to { box-shadow: 0 0 40px var(--grade-shadow); } }
+  .score-stats { font-size: 1.1rem; color: var(--text-muted); line-height: 1.8; }
+  .score-stats strong { color: var(--text-main); font-size: 1.25rem; }
+  .stat-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; margin-right: 0.5rem; color: #fff; }
+
+  /* Metrics Grid */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+  .metric-card {
+    background: rgba(15, 23, 42, 0.6); border-radius: 16px; padding: 1.5rem;
+    border: 1px solid var(--card-border);
+    border-top: 4px solid var(--verdict-color);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .metric-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+  .metric-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600; }
+  .metric-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.02em; color: var(--text-main); margin-bottom: 0.25rem; }
+  .metric-threshold { font-size: 0.8rem; color: #64748B; display: flex; justify-content: space-between; align-items: center; }
+  .verdict-tag { font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 6px; color: #fff; background: var(--verdict-grad); letter-spacing: 0.05em; }
+
+  /* Data Tables */
+  .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--card-border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left; }
+  th { background: rgba(15,23,42,0.8); padding: 1rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; border-bottom: 1px solid var(--card-border); white-space: nowrap; }
+  td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.02); color: #CBD5E1; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  td strong { color: var(--text-main); font-weight: 700; }
+  
+  /* Breakpoint Ramp */
+  .ramp-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; }
+  .ramp-label { width: 80px; font-weight: 700; color: var(--text-muted); font-size: 0.9rem; text-align: right; }
+  .ramp-bar-track { flex: 1; height: 24px; background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; position: relative; }
+  .ramp-bar-fill { height: 100%; border-radius: 12px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; padding-left: 0.5rem; font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.9); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+  .ramp-meta { min-width: 150px; font-size: 0.85rem; color: var(--text-muted); }
+  
+  /* Resource Lists */
+  .resource-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 768px) { .resource-grid { grid-template-columns: 1fr; } }
+  .list-title { font-size: 0.9rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem; }
+  .resource-list { list-style: none; }
+  .resource-list li { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+  .resource-list li:last-child { border-bottom: none; }
+  .r-val { font-family: monospace; font-size: 0.9rem; font-weight: 700; color: #E2E8F0; min-width: 70px; }
+  .r-tag { background: rgba(56,189,248,0.1); color: #38BDF8; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+  .r-url { font-size: 0.8rem; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Details Panel */
+  details summary { cursor: pointer; color: #818CF8; font-weight: 600; padding: 1rem 0; user-select: none; transition: color 0.2s; outline: none; }
+  details summary:hover { color: #A5B4FC; }
+  details[open] summary { border-bottom: 1px solid var(--card-border); margin-bottom: 1rem; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+</head>
+<body>
+<div class="container">
+  
+  <header style="margin-bottom: 2rem;">
+    <h1>Executive Performance Report</h1>
+    <p class="subtitle">Report for <b>Test Site</b> (<a href="https://test.com" style="color:#818CF8;text-decoration:none" target="_blank">https://test.com</a>) &nbsp;•&nbsp; Generated March 25, 2026 at 12:11 PM &nbsp;•&nbsp; Duration: 10.5s</p>
+  </header>
+
+  <section class="card">
+    <div class="scorecard" style="--grade-color:#84CC16; --grade-shadow:rgba(132,204,22,0.3)">
+      <div class="grade-badge">B</div>
+      <div class="score-stats">
+        <strong>Overall Health: Good. Slightly slow on mobile.</strong><br>
+        <div style="margin-top:0.5rem">
+          <span class="stat-pill" style="background:linear-gradient(135deg, #10B981, #059669)">1 Passed</span>
+          <span class="stat-pill" style="background:linear-gradient(135deg, #F59E0B, #D97706)">1 Warnings</span>
+          <span class="stat-pill" style="background:linear-gradient(135deg, #EF4444, #DC2626)">1 Failed</span>
+        </div>
+        <div style="font-size:0.9rem; margin-top:0.5rem">We checked 3 strict speed targets to determine this grade.</div>
+      </div>
+    </div>
+  </section>
+
+  <h2>User Experience Metrics</h2>
+  <section class="card">
+    <div class="metrics-grid">
+        <div class="metric-card" style="--verdict-color:#10B981; --verdict-grad:linear-gradient(135deg, #10B981, #059669)">
+          <div class="metric-label">Main Content Load Time (LCP)</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How long it takes for the largest image or text block to become visible.</p>
+          <div class="metric-value">1200<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span></div>
+          <div class="metric-threshold">
+            <span>Target: 2500 ms</span>
+            <span class="verdict-tag">Passes Target</span>
+          </div>
+        </div>
+        <div class="metric-card" style="--verdict-color:#F59E0B; --verdict-grad:linear-gradient(135deg, #F59E0B, #D97706)">
+          <div class="metric-label">Visual Stability (CLS)</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How much the page layout unexpectedly jumps around while loading.</p>
+          <div class="metric-value">0.05<span style="font-size:1rem;color:#64748B;font-weight:600"></span></div>
+          <div class="metric-threshold">
+            <span>Target: 0.1</span>
+            <span class="verdict-tag">Needs Improvement</span>
+          </div>
+        </div>
+        <div class="metric-card" style="--verdict-color:#EF4444; --verdict-grad:linear-gradient(135deg, #EF4444, #DC2626)">
+          <div class="metric-label">Server Response (TTFB)</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How fast the server begins sending data after a request.</p>
+          <div class="metric-value">1500<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span></div>
+          <div class="metric-threshold">
+            <span>Target: 800 ms</span>
+            <span class="verdict-tag">Failing</span>
+          </div>
+        </div></div>
+  </section>
+
+  <h2>Performance Under Normal Traffic</h2>
+  <section class="card">
+    <p style='margin-bottom:1.5rem;font-size:1.1rem;'>When loaded by multiple users at once, the typical main content load time is <strong>1200 ms</strong>.</p><details><summary>View Technical Variability Data</summary><div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Metric</th><th>Typical (Median)</th><th>Worst Case (95th %ile)</th><th>Min</th><th>Max</th><th>Fluctuation</th><th>Runs</th></tr></thead><tbody><tr>
+          <td><strong>Main Content Load Time (LCP)</strong></td>
+          <td>1200 ms</td>
+          <td style="color:#10B981;font-weight:700">1500 ms</td>
+          <td>1000 ms</td>
+          <td>2000 ms</td>
+          <td style="color:#10B981;font-weight:700">± 150</td>
+          <td>5</td>
+        </tr></tbody></table></div></details>
+  </section>
+
+  <h2>Performance on Slow Internet (Mobile)</h2>
+  <section class="card">
+    <p style='margin-bottom:1.5rem;font-size:1.1rem;'>We simulated slow internet connections (like 3G mobile networks) to see how the site degrades.</p><details><summary>View Network Throttling Data</summary><div class="table-wrapper" style="margin-top:1rem"><table><thead><tr><th>Internet Speed</th><th>Initial Paint Time (FCP)</th><th>Main Content Load Time (LCP)</th><th>Total Load Time</th></tr></thead><tbody><tr><td><strong>Fast 3G</strong></td><td style='color:#10B981;font-weight:700'>0.0 <span style='font-size:0.75rem;font-weight:500;color:#64748b'>ms</span></td><td style='color:#EF4444;font-weight:700'>3000.0 <span style='font-size:0.75rem;font-weight:500;color:#64748b'>ms</span></td><td style='color:#10B981;font-weight:700'>0.0 <span style='font-size:0.75rem;font-weight:500;color:#64748b'>ms</span></td></tr></tbody></table></div></details>
+  </section>
+
+  <h2>User Capacity (Crash Test)</h2>
+  <section class="card">
+    <p style='margin-bottom:1.5rem;font-size:1.1rem;color:#10B981'>✅ The site remained stable even at the maximum tested load of <strong>10 concurrent users</strong>.</p><details><summary>View Capacity Test Results</summary><div style="margin-top:1rem">
+        <div class="ramp-row">
+          <div class="ramp-label">10 Users</div>
+          <div class="ramp-bar-track">
+            <div class="ramp-bar-fill" style="width: 100%; background: linear-gradient(90deg, #10B981, #047857);">
+              2000ms (Worst Case)
+            </div>
+          </div>
+          <div class="ramp-meta">
+            <span style="color:#10B981;font-weight:700">0.0% Err</span>
+            &nbsp;·&nbsp; 🟢 Stable
+          </div>
+        </div></div></details>
+  </section>
+
+  <h2>Page Size & Heavy Assets</h2>
+  <section class="card">
+    <p style='margin-bottom:1.5rem;font-size:1.1rem;'>The page downloads <strong>10 files</strong> totaling <strong>0.5 MB</strong> (images, scripts, styles).</p><details><summary>View Asset Breakdown & Slowest Requests</summary><div style="margin-top:1rem"><div class="table-wrapper" style="margin-bottom:2rem"><table><thead><tr><th>Asset Type</th><th>Requests</th><th>Total Payload</th><th>Avg Delivery Time</th></tr></thead><tbody><tr><td><span class='r-tag'>image</span></td><td><strong>10</strong></td><td>500.0 KB</td><td>50 ms</td></tr></tbody></table></div><div class="resource-grid"><div><div class='list-title'>🐢 Top Longest Requests</div><ul class='resource-list'><li><span class='r-val' style='color:#F59E0B'>100ms</span><span class='r-tag'>image</span><span class='r-url' title='img.jpg'>img.jpg</span></li></ul></div><div><div class='list-title'>🐘 Top Heaviest Payloads</div><ul class='resource-list'><li><span class='r-val' style='color:#818CF8'>1.0kb</span><span class='r-tag'>image</span><span class='r-url' title='img.jpg'>img.jpg</span></li></ul></div></div></div></details>
+  </section>
+
+</div>
+<script>
+  // Tiny script to animate bars on load
+  document.addEventListener("DOMContentLoaded", () => {
+    const bars = document.querySelectorAll('.ramp-bar-fill');
+    bars.forEach(bar => {
+      const target = bar.style.width;
+      bar.style.width = '0%';
+      setTimeout(() => { bar.style.width = target; }, 100);
+    });
+  });
+</script>
+</body>
+</html>
