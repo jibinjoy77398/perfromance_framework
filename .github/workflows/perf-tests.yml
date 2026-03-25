@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     # Allow manual triggering from GitHub UI
 
-# Permissions required to deploy to GitHub Pages
+# Permissions required to deploy to GitHub Pages branch
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -24,9 +24,6 @@ concurrency:
 
 jobs:
   run-perf-tests:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     
     steps:
@@ -50,18 +47,9 @@ jobs:
       - name: 🚀 Run Performance Tests
         run: python run.py
         
-      - name: ⚙️ Setup GitHub Pages
-        if: always()
-        uses: actions/configure-pages@v4
-        
-      - name: 💾 Upload Premium HTML Reports
-        # ALWAYS run this step, even if the tests 'Fail' due to thresholds
-        if: always()
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: reports/
-
       - name: 🌍 Deploy to GitHub Pages
-        id: deployment
         if: always()
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./reports
