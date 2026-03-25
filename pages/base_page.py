@@ -36,7 +36,7 @@ class BasePage:
                     username_selector: str = "input[type='email'], input[name='username'], input[name='email'], #username, #email",
                     password_selector: str = "input[type='password'], #password",
                     submit_selector: str = "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Sign in')"
-                    ) -> None:
+                    ) -> float:
         """
         Generic login — tries common selectors automatically.
         If login_url is set, navigates there first before filling the form.
@@ -89,6 +89,8 @@ class BasePage:
 
             await self.page.locator(username_selector).first.fill(username)
             await self.page.locator(password_selector).first.fill(password)
+            import time
+            start_time = time.perf_counter()
             await self.page.locator(submit_selector).first.click()
             
             # Wait for specific target url if we logged in via a separate login_url
@@ -102,8 +104,11 @@ class BasePage:
                 await self.page.wait_for_load_state("networkidle", timeout=15_000)
             except Exception:
                 pass
+                
+            return (time.perf_counter() - start_time) * 1000.0
         except Exception as e:
             print(f"  [WARN] Login attempt failed: {e}")
+            return 0.0
 
     async def get_metrics(self) -> dict:
         """Collect and return all performance metrics for the current page."""

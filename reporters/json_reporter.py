@@ -26,20 +26,10 @@ class JSONReporter(BaseReporter):
         self,
         site_name: str,
         site_url: str,
-        evaluation: dict,
-        grade: str,
-        baseline_stats: dict,
-        network_stress: dict,
-        ramp_results: list,
-        resource_groups: dict,
-        all_requests: list,
+        results: dict,
         output_path: Path,
         duration_seconds: float = 0,
     ) -> None:
-        passes = sum(1 for v in evaluation.values() if v["verdict"] == "PASS")
-        warns = sum(1 for v in evaluation.values() if v["verdict"] == "WARN")
-        fails = sum(1 for v in evaluation.values() if v["verdict"] == "FAIL")
-
         report = {
             "meta": {
                 "site_name": site_name,
@@ -47,21 +37,7 @@ class JSONReporter(BaseReporter):
                 "timestamp": datetime.now().isoformat(),
                 "duration_seconds": round(duration_seconds, 2),
             },
-            "summary": {
-                "grade": grade,
-                "passed": passes,
-                "warned": warns,
-                "failed": fails,
-                "total_metrics": passes + warns + fails,
-            },
-            "evaluation": evaluation,
-            "baseline": baseline_stats,
-            "network_stress": network_stress,
-            "breakpoint": ramp_results,
-            "resources": {
-                "by_type": resource_groups,
-                "request_count": len(all_requests),
-            },
+            "results": results,
         }
 
         # Change extension to .json

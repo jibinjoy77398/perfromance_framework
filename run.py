@@ -101,7 +101,7 @@ class PerformanceRunner:
 
     # ── Private helpers ──────────────────────────────────────────────────
 
-    async def _collect_page_metrics(self, network_profile: str | None = None) -> dict:
+    async def _collect_page_metrics(self, network_profile: str | None = None, anonymous: bool = False) -> tuple[dict, float]:
         """Launch a browser, navigate, optionally login, collect metrics."""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -118,8 +118,9 @@ class PerformanceRunner:
             bp = BasePage(page, self._site.url, login_url=self._site.login_url)
             await bp.setup()
             await bp.navigate()
-            if self._site.has_credentials:
-                await bp.login(
+            auth_speed = 0.0
+            if self._site.has_credentials and not anonymous:
+                auth_speed = await bp.login(
                     self._site.credentials.username,
                     self._site.credentials.password,
                 )
@@ -127,7 +128,7 @@ class PerformanceRunner:
             await bp.scroll_to_bottom()
             metrics = await bp.get_metrics()
             await browser.close()
-            return metrics
+            return metrics, auth_speed
 
     @staticmethod
     def _percentile(data: list[float], pct: float) -> float:
@@ -139,21 +140,21 @@ class PerformanceRunner:
 
     # ── Test runners ─────────────────────────────────────────────────────
 
-    async def run_core_metrics(self) -> tuple[dict, dict, str]:
+    async def run_core_metrics(self, anonymous: bool = False) -> tuple[dict, dict, str, float]:
         """Collect core metrics, evaluate, and grade."""
         print("  📊 Collecting core metrics …")
-        metrics = await self._collect_page_metrics()
+        metrics, auth_speed = await self._collect_page_metrics(anonymous=anonymous)
         evaluation = self._evaluator.evaluate(metrics)
         site_grade = self._evaluator.grade(evaluation)
-        return metrics, evaluation, site_grade
+        return metrics, evaluation, site_grade, auth_speed
 
-    async def run_baseline(self, n: int | None = None) -> dict:
+    async def run_baseline(self, n: int | None = None, anonymous: bool = False) -> dict:
         """Run N concurrent sessions and return aggregated stats."""
         n = n or self._concurrent
         print(f"  ⚡ Baseline — {n} concurrent runs … ", end="", flush=True)
-        tasks = [self._collect_page_metrics() for _ in range(n)]
+        tasks = [self._collect_page_metrics(anonymous=anonymous) for _ in range(n)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        valid = [r for r in results if isinstance(r, dict)]
+        valid = [r[0] for r in results if isinstance(r, tuple)]
         print(f"done ({len(valid)}/{n} ok)")
         if not valid:
             return {}
@@ -172,13 +173,13 @@ class PerformanceRunner:
             }
         return stats
 
-    async def run_network_stress(self) -> dict:
+    async def run_network_stress(self, anonymous: bool = False) -> dict:
         """Test site under all network profiles."""
         results = {}
         for name in NETWORK_PROFILES:
             print(f"  📡 Network stress [{name}] … ", end="", flush=True)
             try:
-                m = await self._collect_page_metrics(network_profile=name)
+                m, _ = await self._collect_page_metrics(network_profile=name, anonymous=anonymous)
                 results[name] = m
                 print(f"LCP={m.get('lcp',0):.0f}ms  Load={m.get('load_time',0):.0f}ms")
             except Exception as e:
@@ -186,20 +187,20 @@ class PerformanceRunner:
                 results[name] = {}
         return results
 
-    async def run_breakpoint(self, steps: list[int] | None = None) -> list[dict]:
+    async def run_breakpoint(self, steps: list[int] | None = None, anonymous: bool = False) -> list[dict]:
         """Ramp concurrent users to find the breakpoint."""
         steps = steps or self._ramp_steps
         thresholds = self._evaluator.thresholds
         all_levels = []
         for n in steps:
-            print(f"  👥 Breakpoint ramp [{n} users] … ", end="", flush=True)
+            print(f"  👥 {'Concurrent Login Protocol' if not anonymous else 'Anonymous Capacity'} [{n} users] … ", end="", flush=True)
             sem = asyncio.Semaphore(n)
 
             async def _session(sem=sem):
                 result = {"error": None, "load_time": 0, "ttfb": 0, "lcp": 0, "status": "ok"}
                 async with sem:
                     try:
-                        m = await self._collect_page_metrics()
+                        m, _ = await self._collect_page_metrics(anonymous=anonymous)
                         result["load_time"] = m.get("load_time", 0)
                         result["ttfb"] = m.get("ttfb", 0)
                         result["lcp"] = m.get("lcp", 0)
@@ -241,10 +242,10 @@ class PerformanceRunner:
                 break
         return all_levels
 
-    async def run_resource_analysis(self) -> tuple[dict, list]:
+    async def run_resource_analysis(self, anonymous: bool = False) -> tuple[dict, list]:
         """Collect and return resource breakdown."""
         print("  🔬 Resource analysis … ", end="", flush=True)
-        metrics = await self._collect_page_metrics()
+        metrics, _ = await self._collect_page_metrics(anonymous=anonymous)
         groups = metrics.get("resources_by_type", {})
         requests = metrics.get("all_requests", [])
         print(f"{len(requests)} requests captured")
@@ -252,7 +253,7 @@ class PerformanceRunner:
 
     # ── Full run ─────────────────────────────────────────────────────────
 
-    async def run_all(self, enabled_tests: set[str] | None = None) -> None:
+    async def run_all(self, enabled_tests: set[str] | None = None) -> Path:
         """Run all enabled tests, evaluate, and generate report."""
         def should_run(key: str) -> bool:
             return enabled_tests is None or key in enabled_tests
@@ -263,59 +264,56 @@ class PerformanceRunner:
         print(f"{'='*60}")
 
         t0 = time.monotonic()
+        modes = ["anonymous", "authenticated"] if self._site.has_credentials else ["authenticated"]
+        final_results = {}
 
-        # Core metrics (always run)
-        _, evaluation, site_grade = await self.run_core_metrics()
+        for mode in modes:
+            anon = (mode == "anonymous")
+            if len(modes) > 1:
+                print(f"\n  [{modes.index(mode)+1}/{len(modes)}] {'🕵️ Anonymous (Public Traffic)' if anon else '🔐 Authenticated (Private Traffic)'}")
+                
+            _, eval_res, grade, auth_speed = await self.run_core_metrics(anonymous=anon)
+            b_stats = await self.run_baseline(anonymous=anon) if should_run("baseline") else {}
+            n_stats = await self.run_network_stress(anonymous=anon) if should_run("stress") else {}
+            r_stats = await self.run_breakpoint(anonymous=anon) if should_run("breakpoint") else []
+            rg, reqs = await self.run_resource_analysis(anonymous=anon) if should_run("analysis") else ({}, [])
 
-        # Baseline
-        baseline_stats: dict = {}
-        if should_run("baseline"):
-            baseline_stats = await self.run_baseline()
-
-        # Network stress
-        network_results: dict = {}
-        if should_run("stress"):
-            network_results = await self.run_network_stress()
-
-        # Breakpoint
-        ramp_results: list = []
-        if should_run("breakpoint"):
-            ramp_results = await self.run_breakpoint()
-
-        # Resource analysis
-        resource_groups: dict = {}
-        all_requests: list = []
-        if should_run("analysis"):
-            resource_groups, all_requests = await self.run_resource_analysis()
+            final_results[mode] = {
+                "evaluation": eval_res,
+                "grade": grade,
+                "auth_speed": auth_speed,
+                "baseline_stats": b_stats,
+                "network_stress": n_stats,
+                "ramp_results": r_stats,
+                "resource_groups": rg,
+                "all_requests": reqs
+            }
 
         duration = time.monotonic() - t0
 
-        # Generate report via the configured reporter (polymorphism)
+        # Generate report via the configured reporter
         date_str = datetime.now().strftime("%Y-%m-%d")
         safe_name = "".join(c if c.isalnum() else "_" for c in self._site.name)
         report_dir = Path(self._report_dir) / date_str
         report_path = report_dir / f"{safe_name}_report.html"
 
+        # Reporter now accepts 'results' spanning all modes
         self._reporter.generate(
             site_name=self._site.name,
             site_url=self._site.url,
-            evaluation=evaluation,
-            grade=site_grade,
-            baseline_stats=baseline_stats,
-            network_stress=network_results,
-            ramp_results=ramp_results,
-            resource_groups=resource_groups,
-            all_requests=all_requests,
+            results=final_results,
             output_path=report_path,
             duration_seconds=duration,
         )
 
-        # Console summary
-        passes = sum(1 for v in evaluation.values() if v["verdict"] == "PASS")
-        warns  = sum(1 for v in evaluation.values() if v["verdict"] == "WARN")
-        fails  = sum(1 for v in evaluation.values() if v["verdict"] == "FAIL")
-        print(f"\n  Grade: {site_grade}  |  ✅ {passes} PASS  ⚠️  {warns} WARN  ❌ {fails} FAIL")
-        print(f"  Duration: {duration:.1f}s")
+        for mode, data in final_results.items():
+            ev = data["evaluation"]
+            passes = sum(1 for v in ev.values() if v["verdict"] == "PASS")
+            warns  = sum(1 for v in ev.values() if v["verdict"] == "WARN")
+            fails  = sum(1 for v in ev.values() if v["verdict"] == "FAIL")
+            print(f"  [{mode.upper()}] Grade: {data['grade']}  |  ✅ {passes} PASS  ⚠️  {warns} WARN  ❌ {fails} FAIL")
+        print(f"  Total Duration: {duration:.1f}s")
+        return report_path
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -437,7 +435,8 @@ def main() -> None:
     print(f"   Format    : {args.format}")
     print(f"   Reports   : {args.report_dir}/")
 
-    async def run_all():
+    async def run_all_sites():
+        generated = []
         for site in sites:
             runner = PerformanceRunner(
                 site=site,
@@ -448,9 +447,18 @@ def main() -> None:
                 ramp_steps=ramp_steps,
                 report_dir=args.report_dir,
             )
-            await runner.run_all(enabled_tests=enabled)
+            path = await runner.run_all(enabled_tests=enabled)
+            generated.append((site.name, path))
+            
+        # Create a root index.html for live GitHub Pages deployment natively
+        if generated and args.format == "html":
+            idx = Path(args.report_dir) / "index.html"
+            links = "".join(f'<li><a href="{p.relative_to(args.report_dir).as_posix()}" style="color:#818CF8;font-size:1.2rem;text-decoration:none;">📊 View {n} Report</a></li>' for n, p in generated)
+            html = f'''<!DOCTYPE html><html><body style="background:#0B1120;color:#F8FAFC;font-family:sans-serif;padding:3rem;">
+            <h1 style="margin-bottom:2rem;">Performance Framework Hub</h1><ul>{links}</ul></body></html>'''
+            idx.write_text(html, encoding="utf-8")
 
-    asyncio.run(run_all())
+    asyncio.run(run_all_sites())
     print("\n✅  All done.\n")
 
 
