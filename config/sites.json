@@ -1,0 +1,11 @@
+[
+  {
+    "name": "My App",
+    "url": "https://flowapp.synctric.io/",
+    "login_url": "https://flowapp.synctric.io/login",
+    "credentials": {
+      "username": "rahulajithkumar1@gmail.com",
+      "password": "Password@123"
+    }
+  }
+]

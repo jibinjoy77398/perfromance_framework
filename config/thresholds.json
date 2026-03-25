@@ -1,0 +1,20 @@
+{
+  "_comment": "All time values in milliseconds unless noted. Edit freely.",
+  "lcp": 2500,
+  "fcp": 1800,
+  "ttfb": 800,
+  "tti": 3800,
+  "cls": 0.1,
+  "tbt": 300,
+  "load_time": 4000,
+  "dom_content_loaded": 2000,
+  "resource_count": 100,
+  "total_resource_size_kb": 5000,
+  "js_heap_used_mb": 50,
+  "failed_requests": 0,
+  "slow_requests": 5,
+  "p95_load_time": 6000,
+  "stddev_load_time": 800,
+  "breakpoint_users": 10,
+  "error_rate_pct": 5
+}
