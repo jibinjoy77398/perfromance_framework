@@ -6,6 +6,7 @@
   "tti": 3800,
   "cls": 0.1,
   "tbt": 300,
+  "inp": 200,
   "load_time": 4000,
   "dom_content_loaded": 2000,
   "resource_count": 100,

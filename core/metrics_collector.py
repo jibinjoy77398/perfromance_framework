@@ -18,11 +18,13 @@ _PERF_SCRIPT = """
     const cls   = window.__cls  || 0;
     const tbt   = window.__tbt  || 0;
     const inp   = window.__inp  || 0;
-
+    // Native W3C Standard Metric Derivations
+    const ttfb = nav.responseStart !== undefined ? (nav.responseStart - nav.startTime) : 0;
+    
     return {
-        ttfb:               nav.responseStart - nav.requestStart,
-        dom_content_loaded: nav.domContentLoadedEventEnd - nav.startTime,
-        load_time:          nav.loadEventEnd - nav.startTime,
+        ttfb:               ttfb,
+        dom_content_loaded: nav.domContentLoadedEventEnd || 0,
+        load_time:          nav.loadEventEnd || 0,
         fcp:                paints['first-contentful-paint'] || 0,
         lcp:                lcp,
         cls:                cls,
@@ -132,7 +134,12 @@ class MetricsCollector:
 
     async def collect(self) -> dict:
         """Wait a moment for observers, then harvest all metrics."""
-        await self.page.wait_for_load_state("networkidle", timeout=30_000)
+        try:
+            # We use 15s instead of 30s. Sites like Demoblaze have constant background polling
+            # which prevents 'networkidle'. It's safe to catch the timeout and proceed.
+            await self.page.wait_for_load_state("networkidle", timeout=15_000)
+        except Exception:
+            pass
         # Small extra wait so PerformanceObserver fires for LCP/CLS
         await self.page.wait_for_timeout(1500)
 

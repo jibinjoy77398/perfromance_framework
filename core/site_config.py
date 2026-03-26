@@ -30,6 +30,7 @@ class SiteConfig:
     url: str
     login_url: Optional[str] = None
     credentials: Optional[Credentials] = None
+    journey: Optional[list[dict]] = None
 
     # ── Factory methods ──────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ class SiteConfig:
             url=data["url"],
             login_url=data.get("login_url"),
             credentials=Credentials(**creds) if creds else None,
+            journey=data.get("journey"),
         )
 
     @classmethod

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.local-browsers
+
+# Project-specific
+reports/*
+!reports/.gitkeep
+database/*.db
+database/*.db-journal
+database/*.db-wal
+.vscode/
+
+# Performance Metrics
+metrics/

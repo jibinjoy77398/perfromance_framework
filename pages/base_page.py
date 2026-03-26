@@ -110,6 +110,60 @@ class BasePage:
             print(f"  [WARN] Login attempt failed: {e}")
             return 0.0
 
+    async def run_journey(self, journey: list[dict]) -> None:
+        """Executes a custom array of automation interactions sequentially."""
+        print(f"  [INFO] Initiating custom {len(journey)}-step automation journey...")
+        for step in journey:
+            action = step.get("action", "").lower()
+            selector = step.get("selector", "")
+            value = step.get("value", "")
+            timeout = int(step.get("timeout", 10000))
+            
+            try:
+                # ── Mouse & Interaction ──
+                if action == "click":
+                    await self.page.locator(selector).first.click(timeout=timeout)
+                elif action == "dblclick":
+                    await self.page.locator(selector).first.dblclick(timeout=timeout)
+                elif action == "hover":
+                    await self.page.locator(selector).first.hover(timeout=timeout)
+                elif action == "check":
+                    await self.page.locator(selector).first.check(timeout=timeout)
+                elif action == "uncheck":
+                    await self.page.locator(selector).first.uncheck(timeout=timeout)
+                elif action == "select":
+                    await self.page.locator(selector).first.select_option(value, timeout=timeout)
+                elif action == "scroll_into_view":
+                    await self.page.locator(selector).first.scroll_into_view_if_needed(timeout=timeout)
+                
+                # ── Keyboard & Input ──
+                elif action == "fill":
+                    await self.page.locator(selector).first.fill(value, timeout=timeout)
+                elif action == "type" or action == "press_sequentially":
+                    delay = int(step.get("delay", 0))
+                    await self.page.locator(selector).first.press_sequentially(value, delay=delay, timeout=timeout)
+                elif action == "press":
+                    key = step.get("key", "Enter")
+                    if selector:
+                        await self.page.locator(selector).first.press(key, timeout=timeout)
+                    else:
+                        await self.page.keyboard.press(key)
+                
+                # ── Navigation & Waiting ──
+                elif action == "navigate" or action == "goto":
+                    await self.page.goto(value, wait_until="domcontentloaded", timeout=timeout)
+                elif action == "wait_for_selector":
+                    state = step.get("state", "visible")
+                    await self.page.wait_for_selector(selector, state=state, timeout=timeout)
+                elif action == "wait_for_url":
+                    await self.page.wait_for_url(value, timeout=timeout)
+                elif action == "wait":
+                    delay_ms = int(step.get("duration", step.get("timeout", 1000)))
+                    await self.page.wait_for_timeout(delay_ms)
+                    
+            except Exception as e:
+                print(f"  [WARN] Journey Step Error ({action} on {selector or value}): {e}")
+
     async def get_metrics(self) -> dict:
         """Collect and return all performance metrics for the current page."""
         return await self._collector.collect()

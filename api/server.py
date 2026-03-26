@@ -6,6 +6,9 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from locator_service.browser_pool import BrowserPool
 from locator_service.cache import LocatorCache
@@ -18,12 +21,15 @@ async def lifespan(app: FastAPI):
     pool = BrowserPool.instance()
     cache = LocatorCache()
 
+    from utils.db_service import DBService
     # Startup
-    print("\n🚀 Locator Discovery API — Starting")
+    print("\n🚀 Performance Hub — Starting")
+    DBService.init_db()
     await pool.start()
     await cache.init()
     print("  ✅ Browser pool ready")
     print("  ✅ SQLite cache initialized")
+    print("  ✅ Results database initialized")
 
     yield
 
@@ -44,6 +50,21 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(router)
+    
+    # Ensure physical directories exist before mounting
+    os.makedirs("reports", exist_ok=True)
+    os.makedirs("web", exist_ok=True)
+    
+    app.mount("/reports", StaticFiles(directory="reports"), name="reports")
+    app.mount("/static", StaticFiles(directory="web"), name="static")
+
+    @app.get("/")
+    def serve_dashboard():
+        index_path = os.path.join("web", "index.html")
+        if not os.path.exists(index_path):
+            return {"error": "Dashboard index.html not found"}
+        return FileResponse(index_path)
+
     return app
 
 

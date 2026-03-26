@@ -1,10 +1,16 @@
-"""
-routes.py — API endpoints for the Locator Discovery service.
-"""
 from __future__ import annotations
 from datetime import datetime
+from pydantic import BaseModel
+from typing import Optional, List, Dict
+import os
+import json
+from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from core.runner import PerformanceRunner
+from core.site_config import SiteConfig, Credentials
+from utils.email_service import EmailService
+
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 
 from locator_service.browser_pool import BrowserPool
 from locator_service.cache import LocatorCache
@@ -28,25 +34,15 @@ async def scan_url(
 ):
     """
     Scan a webpage and return locators for all interactive elements.
-
-    - **url**: The page URL to scan
-    - **force_refresh**: Set to true to bypass the cache
-    - **include_hidden**: Set to true to include hidden elements
-
-    Returns locator strategies ordered by priority:
-    role → text → testid → id → css → xpath
     """
-    # Validate URL
     if not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
 
-    # Check cache first
     if not force_refresh:
         cached = await _cache.get(url)
         if cached:
             return cached
 
-    # Fresh scan
     try:
         raw_elements, aria_tree = await _scanner.scan(url, include_hidden=include_hidden)
     except ScanError as e:
@@ -54,10 +50,7 @@ async def scan_url(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
 
-    # Generate locators
     locators = _generator.generate_all(raw_elements, aria_tree)
-
-    # Build response
     response = ScanResponse(
         url=url,
         source="fresh",
@@ -65,11 +58,16 @@ async def scan_url(
         element_count=len(locators),
         elements=locators,
     )
-
-    # Cache the result
     await _cache.set(url, response)
-
     return response
+
+
+from utils.db_service import DBService
+
+@router.get("/api/reports")
+async def list_reports():
+    """Lists all generated HTML reports from the database."""
+    return DBService.get_all_reports()
 
 
 @router.get("/health")
@@ -83,13 +81,73 @@ async def health_check():
     }
 
 
-@router.delete("/cache")
-async def clear_cache(
-    url: str = Query(None, description="Specific URL to clear, or omit for all"),
-):
-    """Clear cached scan results."""
-    deleted = await _cache.clear(url)
+class PerfRequest(BaseModel):
+    url: str
+    login_url: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    journey: Optional[List[Dict]] = None
+    
+    # New Fields for Enterprise Orchestration
+    test_type: Optional[str] = "standard"  # standard, spike, soak, scalability
+    spike_requests: Optional[int] = 0
+    scalability_plateau: Optional[int] = 0
+    email_notification: Optional[str] = None
+
+
+async def _background_perf_task(req: PerfRequest):
+    """
+    Background worker that runs the test, generates the report, 
+    and sends email notifications.
+    """
+    try:
+        site = SiteConfig(
+            name=req.url.split("//")[-1].split("/")[0],
+            url=req.url,
+            login_url=req.login_url or req.url,
+            journey=req.journey
+        )
+        if req.username and req.password:
+            site.credentials = Credentials(username=req.username, password=req.password)
+            
+        runner = PerformanceRunner(site=site, headless=True)
+        
+        # Determine enabled tests based on type
+        enabled = None
+        if req.test_type == "spike": enabled = {"standard", "spike"}
+        elif req.test_type == "scalability": enabled = {"standard", "scalability"}
+
+        report_path = await runner.run_all(
+            enabled_tests=enabled,
+            spike_requests=req.spike_requests or 0,
+            scalability_plateau=req.scalability_plateau or 0
+        )
+
+        # Notify via Email
+        if req.email_notification:
+            # Construct public link (assuming localhost for now)
+            pub_url = f"http://localhost:8000/reports/{report_path.parent.name}/{report_path.name}"
+            EmailService.send_report_alert(
+                recipient_email=req.email_notification,
+                site_name=site.name,
+                grade="A", # TODO: Dynamically pull result grade
+                report_url=pub_url
+            )
+            
+    except Exception as e:
+        print(f"  [CRITICAL] Background Task Failed: {e}")
+
+
+@router.post("/run-perf")
+async def run_performance_test(req: PerfRequest, background_tasks: BackgroundTasks):
+    """
+    Triggers a performance sequence in the background.
+    Immediately returns a 'scheduled' status.
+    """
+    background_tasks.add_task(_background_perf_task, req)
+    
     return {
-        "cleared": deleted,
-        "url": url or "all",
+        "status": "scheduled",
+        "message": f"'{req.test_type}' test sequence initiated in background.",
+        "notification": req.email_notification
     }
