@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 from playwright.async_api import async_playwright
 from pages.base_page import BasePage
 from core.site_config import SiteConfig
-from utils.threshold_evaluator import ThresholdEvaluator
+from helpers.threshold_evaluator import ThresholdEvaluator
 from reporters.html_reporter import BaseReporter, HTMLReporter
 from reporters.json_reporter import JSONReporter
 
@@ -180,7 +180,8 @@ def main() -> None:
                         site=site, evaluator=evaluator, reporter=reporter, headless=headless,
                         concurrent=args.concurrent, ramp_steps=ramp_steps, report_dir=args.report_dir
                     )
-                    path = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
+                    res = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
+                    path = res[0] if isinstance(res, tuple) else res
                     generated.append((site.name, path))
                 
                 print(f"--- Iteration {iteration} complete. Sleeping 60s to flush memory buffers. ---")
@@ -199,13 +200,14 @@ def main() -> None:
                 ramp_steps=ramp_steps,
                 report_dir=args.report_dir,
             )
-            path = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
+            res = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
+            path = res[0] if isinstance(res, tuple) else res
             generated.append((site.name, path))
             
         # Create a root index.html for live GitHub Pages deployment natively
         if generated and args.format == "html":
             idx = Path(args.report_dir) / "index.html"
-            links = "".join(f'<li><a href="{p.relative_to(args.report_dir).as_posix()}" style="color:#818CF8;font-size:1.2rem;text-decoration:none;">📊 View {n} Report</a></li>' for n, p in generated)
+            links = "".join(f'<li><a href="{(p[0] if isinstance(p, tuple) else p).relative_to(args.report_dir).as_posix()}" style="color:#818CF8;font-size:1.2rem;text-decoration:none;">📊 View {n} Report</a></li>' for n, p in generated)
             html = f'''<!DOCTYPE html><html><body style="background:#0B1120;color:#F8FAFC;font-family:sans-serif;padding:3rem;">
             <h1 style="margin-bottom:2rem;">Performance Framework Hub</h1><ul>{links}</ul></body></html>'''
             idx.write_text(html, encoding="utf-8")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from core.runner import PerformanceRunner
 from core.site_config import SiteConfig, Credentials
-from utils.email_service import EmailService
+from helpers.email_service import EmailService
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 
@@ -95,11 +95,12 @@ class PerfRequest(BaseModel):
     email_notification: Optional[str] = None
 
 
-async def _background_perf_task(req: PerfRequest):
+async def _background_perf_task(req: PerfRequest, report_id: str):
     """
     Background worker that runs the test, generates the report, 
     and sends email notifications.
     """
+    BASE_DIR = r"C:\Users\chait\performanceframework"
     try:
         site = SiteConfig(
             name=req.url.split("//")[-1].split("/")[0],
@@ -110,30 +111,35 @@ async def _background_perf_task(req: PerfRequest):
         if req.username and req.password:
             site.credentials = Credentials(username=req.username, password=req.password)
             
-        runner = PerformanceRunner(site=site, headless=True)
+        runner = PerformanceRunner(site=site, headless=True, report_dir=os.path.join(BASE_DIR, "reports"))
         
         # Determine enabled tests based on type
         enabled = None
         if req.test_type == "spike": enabled = {"standard", "spike"}
         elif req.test_type == "scalability": enabled = {"standard", "scalability"}
 
-        report_path = await runner.run_all(
+        # Perform the actual run
+        res = await runner.run_all(
             enabled_tests=enabled,
             spike_requests=req.spike_requests or 0,
             scalability_plateau=req.scalability_plateau or 0
         )
+        report_path, final_results = res if isinstance(res, tuple) else (res, {})
 
-        # Notify via Email
+        # Notify via Email with critical highlights
         if req.email_notification:
-            # Construct public link (assuming localhost for now)
-            pub_url = f"http://localhost:8000/reports/{report_path.parent.name}/{report_path.name}"
-            EmailService.send_report_alert(
-                recipient_email=req.email_notification,
-                site_name=site.name,
-                grade="A", # TODO: Dynamically pull result grade
-                report_url=pub_url
-            )
-            
+            main_mode = "authenticated" if "authenticated" in final_results else "anonymous"
+            main_data = final_results.get(main_mode, {})
+            if main_data:
+                pub_url = f"http://localhost:9000/reports/{report_path.parent.name}/{report_path.name}"
+                EmailService.send_report_alert(
+                    recipient_email=req.email_notification,
+                    site_name=site.name,
+                    grade=main_data.get("grade", "N/A"),
+                    report_url=pub_url,
+                    spike=main_data.get("spike_results"),
+                    stress=main_data.get("ramp_results")
+                )
     except Exception as e:
         print(f"  [CRITICAL] Background Task Failed: {e}")
 
@@ -142,12 +148,28 @@ async def _background_perf_task(req: PerfRequest):
 async def run_performance_test(req: PerfRequest, background_tasks: BackgroundTasks):
     """
     Triggers a performance sequence in the background.
-    Immediately returns a 'scheduled' status.
     """
-    background_tasks.add_task(_background_perf_task, req)
+    report_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    site_name = req.url.split("//")[-1].split("/")[0].replace(".", "_")
+    expected_path = f"{datetime.now().strftime('%Y-%m-%d')}/{site_name}_report.html"
+    
+    background_tasks.add_task(_background_perf_task, req, report_id)
     
     return {
         "status": "scheduled",
-        "message": f"'{req.test_type}' test sequence initiated in background.",
-        "notification": req.email_notification
+        "report_id": report_id,
+        "expected_report": f"/reports/{expected_path}"
+    }
+
+@router.get("/report-status")
+async def get_report_status(path: str):
+    """Checks if a report file exists on disk."""
+    BASE_DIR = r"C:\Users\chait\performanceframework"
+    # Clean the path to get relative part
+    rel_path = path.replace("/reports/", "")
+    full_path = os.path.join(BASE_DIR, "reports", rel_path)
+    exists = os.path.exists(full_path)
+    return {
+        "ready": exists,
+        "url": path if exists else None
     }

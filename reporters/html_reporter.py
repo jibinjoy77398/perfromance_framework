@@ -227,7 +227,9 @@ class HTMLReporter(BaseReporter):
             html += f'<details><summary class="details-btn">View {mode.title()} Throttling Data</summary>'
             html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load Time</th></tr></thead><tbody>'
             for p, m in prof.items():
-                html += f"<tr><td><strong>{p}</strong></td><td>{m.get('lcp',0):.1f} ms</td><td>{m.get('load_time',0):.1f} ms</td></tr>"
+                lcp = float(m.get('lcp', 0)) if isinstance(m.get('lcp'), (int, float)) or (isinstance(m.get('lcp'), str) and m.get('lcp').replace('.','',1).isdigit()) else 0.0
+                load = float(m.get('load_time', 0)) if isinstance(m.get('load_time'), (int, float)) or (isinstance(m.get('load_time'), str) and m.get('load_time').replace('.','',1).isdigit()) else 0.0
+                html += f"<tr><td><strong>{p}</strong></td><td>{lcp:.1f} ms</td><td>{load:.1f} ms</td></tr>"
             html += "</tbody></table></div></details>"
         return html
 
@@ -247,12 +249,14 @@ class HTMLReporter(BaseReporter):
             for r in ramp:
                 broke = r.get("error_rate_pct", 0) > 5 or r.get("p95_load_time", 0) > 6000
                 color = "linear-gradient(90deg, #EF4444, #B91C1C)" if broke else "linear-gradient(90deg, #10B981, #047857)"
-                pct = min(100, max(5, int((r.get("p95_load_time", 0) / max_p95) * 100)))
+                pct = min(100, max(5, int((float(r.get("p95_load_time", 0)) / max_p95) * 100)))
+                p95_val = float(r.get('p95_load_time',0))
+                err_val = float(r.get('error_rate_pct',0))
                 html += f"""
             <div class="ramp-row">
               <div class="ramp-label">{r['users']} Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: {pct}%; background: {color};">{r.get('p95_load_time',0):.0f}ms</div></div>
-              <div class="ramp-meta"><span style="color:{'#EF4444' if r.get('error_rate_pct',0)>5 else '#10B981'};font-weight:700">{r.get('error_rate_pct',0):.1f}% Err</span></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: {pct}%; background: {color};">{p95_val:.0f}ms</div></div>
+              <div class="ramp-meta"><span style="color:{'#EF4444' if err_val>5 else '#10B981'};font-weight:700">{err_val:.1f}% Err</span></div>
             </div>"""
             html += "</div></details>"
         return html

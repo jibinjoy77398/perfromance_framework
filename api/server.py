@@ -6,9 +6,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+import os
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
+from dotenv import load_dotenv
+load_dotenv() # Load local .env secrets
 
 from locator_service.browser_pool import BrowserPool
 from locator_service.cache import LocatorCache
@@ -21,7 +23,7 @@ async def lifespan(app: FastAPI):
     pool = BrowserPool.instance()
     cache = LocatorCache()
 
-    from utils.db_service import DBService
+    from helpers.db_service import DBService
     # Startup
     print("\n🚀 Performance Hub — Starting")
     DBService.init_db()

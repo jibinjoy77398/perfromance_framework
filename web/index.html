@@ -365,7 +365,8 @@
         <div class="glass-panel">
             
             <div class="header">
-                <h1>Performance Engine</h1>
+                <!-- FIX: Guaranteed LCP Candidate -->
+                <h1 style="font-size: 2.25rem; margin-bottom: 0.5rem;">Performance Engine</h1>
                 <p>Enterprise diagnostics and locator discovery hub.</p>
             </div>
 
@@ -427,7 +428,7 @@
                                 <div class="input-icon">
                                     <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                                 </div>
-                                <input type="email" id="notify-email" placeholder="Email results to..." style="padding-left: 3rem;">
+                                <input type="email" id="notify-email" placeholder="Email results to..." style="padding-left: 3rem;" value="jibin.joy77398@gmail.com">
                             </div>
 
                             <div style="padding-top: 1rem; border-top: 1px dotted var(--surface-border);">
@@ -602,11 +603,13 @@
             document.getElementById("back-btn").style.display = "none";
             document.getElementById("main-container").style.display = "block";
             frame.src = "";
+            if (window.pollingTimer) clearInterval(window.pollingTimer);
         }
 
         function cancelTest() {
             if(abortController) abortController.abort();
             clearInterval(statusInterval);
+            if (window.pollingTimer) clearInterval(window.pollingTimer);
             document.getElementById("loader").classList.remove("active");
             document.getElementById("submit-btn").disabled = false;
         }
@@ -654,21 +657,40 @@
                 if (!response.ok) throw new Error("Backend deployment failure");
                 const data = await response.json();
 
-                if (data.status === "scheduled") {
-                    statusText.innerText = "Task Delegated Successfully!";
-                    setTimeout(() => {
-                        loader.classList.remove("active");
-                        btn.disabled = false;
-                        clearInterval(statusInterval);
-                        alert(`Test started in background!\nNotification will be sent to ${payload.email_notification || 'your terminal'} upon completion.`);
-                        switchTab('history');
-                    }, 1500);
+                if (data.status === "scheduled" && data.expected_report) {
+                    const expectedReport = data.expected_report;
+                    statusText.innerText = "Audit in progress...";
+                    
+                    // Polling logic
+                    window.pollingTimer = setInterval(async () => {
+                        try {
+                            const pollRes = await fetch(`/report-status?path=${encodeURIComponent(expectedReport)}`);
+                            const status = await pollRes.json();
+                            
+                            if (status.ready) {
+                                clearInterval(window.pollingTimer);
+                                clearInterval(statusInterval);
+                                loader.classList.remove("active");
+                                btn.disabled = false;
+                                openPastReport(status.url);
+                            }
+                        } catch (e) { 
+                            console.error("Poll failed", e);
+                            clearInterval(window.pollingTimer); 
+                        }
+                    }, 3000);
+                } else {
+                    alert("Audit scheduled but no report path received.");
+                    loader.classList.remove("active");
+                    btn.disabled = false;
+                    clearInterval(statusInterval);
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') alert("Critical Error: " + err.message);
                 loader.classList.remove("active");
                 btn.disabled = false;
                 clearInterval(statusInterval);
+                if (window.pollingTimer) clearInterval(window.pollingTimer);
             }
         }
     </script>

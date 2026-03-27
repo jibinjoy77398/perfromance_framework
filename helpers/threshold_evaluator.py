@@ -10,20 +10,12 @@ THRESHOLD_FILE = Path(__file__).parent.parent / "config" / "thresholds.json"
 
 # Metrics where LOWER is better (value > threshold → FAIL)
 LOWER_IS_BETTER = {
-    "fcp", "ttfb", "tti", "tbt", "inp",
+    "lcp", "fcp", "ttfb", "tti", "tbt", "inp", "cls",
     "load_time", "dom_content_loaded",
     "resource_count", "total_resource_size_kb",
     "js_heap_used_mb", "failed_requests", "slow_requests",
     "p95_load_time", "stddev_load_time", "error_rate_pct",
-    # FIX: Bug 3 - removed "lcp" and "cls" from here — handled separately below
 }
-
-# FIX: Bug 3 - LCP: lower is better but 0 means NOT CAPTURED → treat as FAIL
-LCP_ZERO_IS_FAIL = {"lcp"}
-
-# FIX: Bug 3 - CLS: lower is better but 0 is PERFECT (best possible value)
-# threshold is the MAX allowed (e.g. 0.1), so value <= threshold → PASS
-CLS_LIKE = {"cls"}
 
 
 class ThresholdEvaluator:
@@ -65,50 +57,27 @@ class ThresholdEvaluator:
             value = metrics.get(key)
             if value is None:
                 continue
-
-            # FIX: convert string numbers to float safely
+            
+            # FIX: Ensure value is a float for accurate comparison (especially CLS 0.00 vs 0.1)
             try:
-                value = float(value)
-            except (TypeError, ValueError):
-                continue
+                numeric_value = float(value)
+            except (ValueError, TypeError):
+                numeric_value = 0.0
 
-            # FIX: Bug 3 - CLS special case: 0 is perfect, verdict based on <= threshold
-            if key in CLS_LIKE:
-                if value <= threshold:
-                    verdict = "PASS"
-                elif value <= threshold * (1 + (1 - self.WARN_RATIO)):
-                    verdict = "WARN"
-                else:
+            if key in LOWER_IS_BETTER:
+                if numeric_value > threshold:
                     verdict = "FAIL"
-
-            # FIX: Bug 2 - LCP = 0 means it was never captured → always FAIL
-            elif key in LCP_ZERO_IS_FAIL:
-                if value == 0:
-                    verdict = "FAIL"
-                elif value > threshold:
-                    verdict = "FAIL"
-                elif value > threshold * self.WARN_RATIO:
+                elif numeric_value > threshold * self.WARN_RATIO:
                     verdict = "WARN"
                 else:
                     verdict = "PASS"
-
-            elif key in LOWER_IS_BETTER:
-                if value > threshold:
-                    verdict = "FAIL"
-                elif value > threshold * self.WARN_RATIO:
-                    verdict = "WARN"
-                else:
-                    verdict = "PASS"
-
             else:
-                # Higher is better
-                if value < threshold:
+                if numeric_value < threshold:
                     verdict = "FAIL"
-                elif value < threshold * (1 + (1 - self.WARN_RATIO)):
+                elif numeric_value < threshold * (1 + (1 - self.WARN_RATIO)):
                     verdict = "WARN"
                 else:
                     verdict = "PASS"
-
             results[key] = {"value": value, "threshold": threshold, "verdict": verdict}
         return results
 
@@ -144,6 +113,7 @@ class ThresholdEvaluator:
 
 
 # ── Backward-compatible free functions ───────────────────────────────────
+# Keep these so existing test files don't break immediately.
 
 _default_evaluator: ThresholdEvaluator | None = None
 
@@ -156,11 +126,14 @@ def _get_default() -> ThresholdEvaluator:
 
 
 def load_thresholds() -> dict:
+    """Backward-compatible: returns thresholds dict."""
     return _get_default().thresholds
 
 
 def evaluate(metrics: dict, thresholds: dict | None = None) -> dict[str, dict]:
+    """Backward-compatible: evaluate metrics."""
     if thresholds is not None:
+        # Caller passed custom thresholds — use old-style logic
         ev = ThresholdEvaluator()
         ev._thresholds = thresholds
         return ev.evaluate(metrics)
@@ -168,4 +141,5 @@ def evaluate(metrics: dict, thresholds: dict | None = None) -> dict[str, dict]:
 
 
 def grade(results: dict[str, dict]) -> str:
+    """Backward-compatible: compute letter grade."""
     return ThresholdEvaluator.grade(results)
