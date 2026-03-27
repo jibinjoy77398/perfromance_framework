@@ -424,19 +424,19 @@ class PerformanceRunner:
         modes = ["anonymous", "authenticated"] if self._site.has_credentials else ["anonymous"]
         final_results = {}
 
-        async with async_playwright() as p:
-            self._browser = await p.chromium.launch(
-                headless=self._headless,
-                args=[
-                    "--disable-extensions", 
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",           # Prevents restricted memory segment crashes
-                    "--js-flags=--max-old-space-size=8192", # Assign 8GB of RAM to V8 Engine
-                    "--disk-cache-size=1073741824"       # Allocate 1GB to local disk cache
-                ],
-            )
-            try:
-                for mode in modes:
+        for mode in modes:
+            async with async_playwright() as p:
+                self._browser = await p.chromium.launch(
+                    headless=self._headless,
+                    args=[
+                        "--disable-extensions", 
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",           # Prevents restricted memory segment crashes
+                        "--js-flags=--max-old-space-size=8192", # Assign 8GB of RAM to V8 Engine
+                        "--disk-cache-size=1073741824"       # Allocate 1GB to local disk cache
+                    ],
+                )
+                try:
                     anon = (mode == "anonymous")
                     if len(modes) > 1:
                         print(f"\n  [{modes.index(mode)+1}/{len(modes)}] {'🕵️ Anonymous (Public Traffic)' if anon else '🔐 Authenticated (Private Traffic)'}")
@@ -445,7 +445,7 @@ class PerformanceRunner:
                     baseline_stats = await self.run_baseline(anonymous=anon)
                     
                     # Extract representative core metrics from baseline for grading
-                    main_metrics = {k: v["p50"] for k, v in baseline_stats.items() if isinstance(v, dict)}
+                    main_metrics = {k: v["p50"] for k, v in baseline_stats.items() if isinstance(v, dict) and "p50" in v}
                     eval_res = self._evaluator.evaluate(main_metrics)
                     grade = self._evaluator.grade(eval_res)
                     auth_speed = 0.0 # Standard auth speed placeholder for baseline runs
@@ -478,56 +478,66 @@ class PerformanceRunner:
                         "all_requests": reqs
                     }
 
-                duration = time.monotonic() - t0
+                except Exception as e:
+                    print(f"  [CRITICAL] Error in mode '{mode}': {e}")
+                    # Add empty fallback to allow reporter loop to continue
+                    final_results[mode] = {
+                        "evaluation": {}, "grade": "F", "auth_speed": 0.0,
+                        "baseline_stats": {}, "network_stress": {}, "ramp_results": [],
+                        "spike_results": None, "scalability_results": None, "resource_groups": {}, "all_requests": []
+                    }
+                finally:
+                    if self._browser:
+                        await self._browser.close()
+                        self._browser = None
 
-                date_str = datetime.now().strftime("%Y-%m-%d")
-                safe_name = "".join(c if c.isalnum() else "_" for c in self._site.name)
-                report_dir = Path(self._report_dir) / date_str
-                report_path = report_dir / f"{safe_name}_report.html"
+        # Post-process: Generate report
+        duration = time.monotonic() - t0
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        report_name = f"{self._site.name.replace(' ', '_').lower()}_report.html"
+        report_dir = Path(self._report_dir) / date_str
+        report_path = report_dir / report_name
+        
+        # Ensure report directory exists
+        report_dir.mkdir(parents=True, exist_ok=True)
+        
+        rel_url = f"/reports/{date_str}/{report_name}"
+        
+        self._reporter.generate(
+            site_name=self._site.name,
+            site_url=self._site.url,
+            results=final_results,
+            output_path=report_path,
+            duration_seconds=duration
+        )
 
-                self._reporter.generate(
-                    site_name=self._site.name,
-                    site_url=self._site.url,
-                    results=final_results,
-                    output_path=report_path,
-                    duration_seconds=duration,
-                )
+        try:
+            # Use the first available mode for the main grade/stats
+            main_mode = "authenticated" if "authenticated" in final_results else "anonymous"
+            main_data = final_results.get(main_mode, {})
+            ev = main_data.get("evaluation", {})
+            passes = sum(1 for v in ev.values() if v.get("verdict") == "PASS")
+            fails  = sum(1 for v in ev.values() if v.get("verdict") == "FAIL")
 
-                # Log to SQLite Database for History tab reliability
-                try:
-                    from helpers.db_service import DBService
-                    # Use the first available mode for the main grade/stats
-                    main_mode = "authenticated" if "authenticated" in final_results else "anonymous"
-                    main_data = final_results[main_mode]
-                    ev = main_data["evaluation"]
-                    passes = sum(1 for v in ev.values() if v["verdict"] == "PASS")
-                    fails  = sum(1 for v in ev.values() if v["verdict"] == "FAIL")
-                    
-                    # Convert absolute path to relative for the web server
-                    rel_url = f"/reports/{report_path.parent.name}/{report_path.name}"
-                    
-                    DBService.log_report(
-                        name=f"{self._site.name} Performance Audit",
-                        site=self._site.url,
-                        date=date_str,
-                        url=rel_url,
-                        grade=main_data["grade"],
-                        passed=passes,
-                        failed=fails,
-                        duration=round(self._safe_float(duration), 2)
-                    )
-                except Exception as db_err:
-                    print(f"  [WARN] Failed to log report to database: {db_err}")
+            from helpers.db_service import DBService
+            DBService.log_report(
+                name=f"{self._site.name} Performance Audit",
+                site=self._site.url,
+                date=date_str,
+                url=rel_url,
+                grade=main_data.get("grade", "F"),
+                passed=passes,
+                failed=fails,
+                duration=round(self._safe_float(duration), 2)
+            )
+        except Exception as db_err:
+            print(f"  [WARN] Failed to log report to database: {db_err}")
 
-                for mode, data in final_results.items():
-                    ev = data["evaluation"]
-                    passes = sum(1 for v in ev.values() if v["verdict"] == "PASS")
-                    warns  = sum(1 for v in ev.values() if v["verdict"] == "WARN")
-                    fails  = sum(1 for v in ev.values() if v["verdict"] == "FAIL")
-                    print(f"  [{mode.upper()}] Grade: {data['grade']}  |  ✅ {passes} PASS  ⚠️  {warns} WARN  ❌ {fails} FAIL")
-                print(f"  Total Duration: {float(self._safe_float(duration)):.1f}s")
-                return report_path, final_results
-            finally:
-                if self._browser:
-                    await self._browser.close()
-                    self._browser = None
+        for mode, data in final_results.items():
+            ev = data.get("evaluation", {})
+            passes = sum(1 for v in ev.values() if v.get("verdict") == "PASS")
+            warns  = sum(1 for v in ev.values() if v.get("verdict") == "WARN")
+            fails  = sum(1 for v in ev.values() if v.get("verdict") == "FAIL")
+            print(f"  [{mode.upper()}] Grade: {data.get('grade','F')}  |  ✅ {passes} PASS  ⚠️  {warns} WARN  ❌ {fails} FAIL")
+        print(f"  Total Duration: {float(self._safe_float(duration)):.1f}s")
+        return report_path, final_results
