@@ -125,7 +125,7 @@ _OBSERVER_SCRIPT = """
             for (const e of list.getEntries()) {
                 if (e.duration > window.__inp) window.__inp = e.duration;
             }
-        }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
+        }).observe({ type: 'event', buffered: true, durationThreshold: 0 }); // FIX: INP threshold 0 captures all interaction events
     } catch(e) {}
 }
 """
