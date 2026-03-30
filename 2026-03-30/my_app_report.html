@@ -1,10 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Performance Report — My App</title>
-  
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Report — My App</title>
 <style>
   :root {
     --bg-color: #0B1120;
@@ -53,6 +47,11 @@
   .auth-stat-value { font-size: 2.5rem; font-weight: 900; color: #F59E0B; line-height:1; margin-bottom: 0.2rem; }
   .auth-stat-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 
+  /* Spike Analysis Card Specifics */
+  .spike-card { border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); }
+  .spike-value { font-size: 2rem; font-weight: 900; color: #EF4444; }
+  .spike-label { text-transform: uppercase; font-size: 0.75rem; color: #94A3B8; font-weight:600; }
+  
   .stat-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; margin-right: 0.5rem; color: #fff; }
 
   .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
@@ -80,51 +79,16 @@
   details[open] summary { border-bottom: 1px solid var(--card-border); margin-bottom: 1rem; }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head><body><div class="container">
+<header><h1>Executive Performance Report</h1><p class="subtitle">Report for <b>My App</b> (<a href="https://flowapp.synctric.io/" style="color:#818CF8;" target="_blank">https://flowapp.synctric.io/</a>) • March 30, 2026 at 10:16 AM • 405.7s</p></header>
+<section class="card"><div class="scorecard" style="--grade-color:#F59E0B; --grade-shadow:rgba(245,158,11,0.3)"><div class="sc-left"><div class="grade-badge">C</div><div class="score-stats"><strong>Overall Health</strong><br><div style="margin-top:0.5rem"><span class="stat-pill" style="background:linear-gradient(135deg, #10B981, #059669)">10 Passed</span><span class="stat-pill" style="background:linear-gradient(135deg, #F59E0B, #D97706)">0 Warnings</span><span class="stat-pill" style="background:linear-gradient(135deg, #EF4444, #DC2626)">3 Failed</span></div><div style="font-size:0.9rem; margin-top:0.5rem">Scored against 13 thresholds.</div></div></div><div class="auth-overhead-card"><div class="auth-stat-label">Authentication Engine</div><div class="auth-stat-value" style="color: #60A5FA;">15060ms</div><div class="auth-stat-label">Auth Overhead</div><div class="auth-stat-value" style="color: #10B981;">+-1625ms</div></div></div></section>
 
-</head>
-<body>
-<div class="container">
-  
-  <header style="margin-bottom: 2rem;">
-    <h1>Executive Performance Report</h1>
-    <p class="subtitle">Report for <b>My App</b> (<a href="https://flowapp.synctric.io/" style="color:#818CF8;text-decoration:none" target="_blank">https://flowapp.synctric.io/</a>) &nbsp;•&nbsp; Generated March 30, 2026 at 10:04 AM &nbsp;•&nbsp; Duration: 416.5s</p>
-  </header>
-
-  <section class="card">
-    <div class="scorecard" style="--grade-color:#F59E0B; --grade-shadow:rgba(245,158,11,0.3)">
-      <div class="sc-left">
-        <div class="grade-badge">C</div>
-        <div class="score-stats">
-          <strong>Overall Health</strong><br>
-          <div style="margin-top:0.5rem">
-            <span class="stat-pill" style="background:linear-gradient(135deg, #10B981, #059669)">10 Passed</span>
-            <span class="stat-pill" style="background:linear-gradient(135deg, #F59E0B, #D97706)">0 Warnings</span>
-            <span class="stat-pill" style="background:linear-gradient(135deg, #EF4444, #DC2626)">3 Failed</span>
-          </div>
-          <div style="font-size:0.9rem; margin-top:0.5rem">Scored against 13 thresholds.</div>
-        </div>
-      </div>
-      
-            <div class="auth-overhead-card">
-              <div class="auth-stat-label">Authentication Engine</div>
-              <div class="auth-stat-value" style="color: #60A5FA;">15072ms</div>
-              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom: 1rem;">Credential sumbit to redirect</div>
-            
-                  <div class="auth-stat-label">Auth Overhead Cost (Per Req)</div>
-                  <div class="auth-stat-value" style="color: #10B981;">+-1639ms</div>
-                  <div style="font-size:0.8rem; color:var(--text-muted);">CDN Public vs Authenticated Delta</div>
-                </div>
-    </div>
-  </section>
-
-  <h2>User Experience Metrics</h2>
-  <section class="card">
-    <div class="metrics-grid">
+<h2>User Experience Metrics</h2><section class="card"><div class="metrics-grid">
         <div class="metric-card" style="border-top-color:#10B981">
           <div class="metric-label">Main Content Load Time (LCP)</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How long it takes for the largest image/text to become visible.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 490.20<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
+            🔐 472.30<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 2500 ms</span>
@@ -132,7 +96,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1974.80 ms</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1894.70 ms</span></span>
                 </div>
                 
         </div>
@@ -140,7 +104,7 @@
           <div class="metric-label">Initial Paint Time (FCP)</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How long until the first piece of content appears.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 272<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
+            🔐 260<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 1800 ms</span>
@@ -148,7 +112,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#EF4444;font-weight:700">2224 ms</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#EF4444;font-weight:700">2060 ms</span></span>
                 </div>
                 
         </div>
@@ -156,7 +120,7 @@
           <div class="metric-label">Server Response (TTFB)</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How fast the server begins sending data.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 242<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
+            🔐 233<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 800 ms</span>
@@ -164,7 +128,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">268 ms</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">234 ms</span></span>
                 </div>
                 
         </div>
@@ -220,7 +184,7 @@
           <div class="metric-label">Total Load Time</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">How long the entire page takes to fully finish loading.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 490<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
+            🔐 472<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 4000 ms</span>
@@ -228,7 +192,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1975 ms</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1895 ms</span></span>
                 </div>
                 
         </div>
@@ -236,7 +200,7 @@
           <div class="metric-label">Dom Content Loaded</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">Performance metric.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 269<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
+            🔐 261<span style="font-size:1rem;color:#64748B;font-weight:600"> ms</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 2000 ms</span>
@@ -244,7 +208,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1165 ms</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">1115 ms</span></span>
                 </div>
                 
         </div>
@@ -268,7 +232,7 @@
           <div class="metric-label">Total Resource Size Kb</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">Performance metric.</p>
           <div class="metric-value" style="color:#EF4444">
-            🔐 5113.12<span style="font-size:1rem;color:#64748B;font-weight:600"> KB</span>
+            🔐 5071.18<span style="font-size:1rem;color:#64748B;font-weight:600"> KB</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 5000 KB</span>
@@ -284,7 +248,7 @@
           <div class="metric-label">Js Heap Used Mb</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">Performance metric.</p>
           <div class="metric-value" style="color:#10B981">
-            🔐 20.11<span style="font-size:1rem;color:#64748B;font-weight:600"> MB</span>
+            🔐 17.44<span style="font-size:1rem;color:#64748B;font-weight:600"> MB</span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 50 MB</span>
@@ -292,7 +256,7 @@
           </div>
           
                 <div style="font-size: 0.85rem; margin-top: 0.5rem; color:#94A3B8; display:flex; justify-content:space-between;">
-                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">5.23 MB</span></span>
+                  <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">5.15 MB</span></span>
                 </div>
                 
         </div>
@@ -300,7 +264,7 @@
           <div class="metric-label">Failed Requests</div>
           <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">Performance metric.</p>
           <div class="metric-value" style="color:#EF4444">
-            🔐 16<span style="font-size:1rem;color:#64748B;font-weight:600"></span>
+            🔐 21<span style="font-size:1rem;color:#64748B;font-weight:600"></span>
           </div>
           <div class="metric-threshold" style="font-size:0.75rem;">
             <span>Target: 0</span>
@@ -327,95 +291,61 @@
                   <span>🔓 Public (CDN): <span style="color:#10B981;font-weight:700">0</span></span>
                 </div>
                 
-        </div></div>
-  </section>
-
-  <!-- NEW: improvement 2 — Lighthouse Comparison -->
-  <h2>Lighthouse Comparison</h2>
-  <section class="card">
-    <div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">💡 <i>Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison.</i></div>
-  </section>
-
-  <h2>Performance Under Normal Traffic</h2>
-  <section class="card">
-    <p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Public Load Typical Speed:</strong> 2177.7 ms.</p><details><summary class="details-btn">View Anonymous Variability Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50 (Median)</th><th>p95 (Worst Case)</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody><tr><td><strong>Initial Paint Time (FCP)</strong></td><td>2140.0 ms</td><td style='color:#10B981;font-weight:700'>2168.0 ms</td><td>1788.0 ms</td><td>2172.0 ms</td><td>± 188.8</td></tr><tr><td><strong>Main Content Load Time (LCP)</strong></td><td>2177.7 ms</td><td style='color:#10B981;font-weight:700'>2247.18 ms</td><td>2118.2 ms</td><td>2253.4 ms</td><td>± 55.04</td></tr><tr><td><strong>Server Response (TTFB)</strong></td><td>236.0 ms</td><td style='color:#10B981;font-weight:700'>246.4 ms</td><td>220.0 ms</td><td>248.0 ms</td><td>± 10.55</td></tr><tr><td><strong>Visual Stability (CLS)</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Tbt</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Total Load Time</strong></td><td>2178.0 ms</td><td style='color:#10B981;font-weight:700'>2246.8 ms</td><td>2118.0 ms</td><td>2253.0 ms</td><td>± 54.86</td></tr><tr><td><strong>Dom_Content_Loaded</strong></td><td>1146.0 ms</td><td style='color:#10B981;font-weight:700'>1174.6 ms</td><td>907.0 ms</td><td>1175.0 ms</td><td>± 136.07</td></tr></tbody></table></div></details><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Authenticated Full-Stack Speed:</strong> 538.9 ms.</p><details><summary class="details-btn">View Authenticated Variability Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50 (Median)</th><th>p95 (Worst Case)</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody><tr><td><strong>Initial Paint Time (FCP)</strong></td><td>784.0 ms</td><td style='color:#10B981;font-weight:700'>911.2 ms</td><td>748.0 ms</td><td>932.0 ms</td><td>± 73.89</td></tr><tr><td><strong>Main Content Load Time (LCP)</strong></td><td>538.9 ms</td><td style='color:#10B981;font-weight:700'>559.02 ms</td><td>494.8 ms</td><td>564.0 ms</td><td>± 28.27</td></tr><tr><td><strong>Server Response (TTFB)</strong></td><td>234.0 ms</td><td style='color:#10B981;font-weight:700'>239.2 ms</td><td>228.0 ms</td><td>240.0 ms</td><td>± 4.6</td></tr><tr><td><strong>Visual Stability (CLS)</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Tbt</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Total Load Time</strong></td><td>539.0 ms</td><td style='color:#10B981;font-weight:700'>559.0 ms</td><td>495.0 ms</td><td>564.0 ms</td><td>± 28.3</td></tr><tr><td><strong>Dom_Content_Loaded</strong></td><td>270.0 ms</td><td style='color:#10B981;font-weight:700'>335.4 ms</td><td>249.0 ms</td><td>349.0 ms</td><td>± 41.0</td></tr></tbody></table></div></details>
-  </section>
-
-  <h2>Performance on Slow Internet (Mobile)</h2>
-  <section class="card">
-    <p style='margin-bottom:1.5rem;font-size:1.1rem;'>We simulated slow internet connections (like 3G mobile networks).</p><details><summary class="details-btn">View Anonymous Throttling Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load Time</th></tr></thead><tbody><tr><td><strong>Broadband</strong></td><td>1955.1 ms</td><td>1955.0 ms</td></tr><tr><td><strong>4G</strong></td><td>2198.6 ms</td><td>2199.0 ms</td></tr><tr><td><strong>Fast 3G</strong></td><td>3498.3 ms</td><td>3498.0 ms</td></tr><tr><td><strong>Slow 3G</strong></td><td>8096.2 ms</td><td>8096.0 ms</td></tr></tbody></table></div></details><details><summary class="details-btn">View Authenticated Throttling Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load Time</th></tr></thead><tbody><tr><td><strong>Broadband</strong></td><td>482.4 ms</td><td>482.0 ms</td></tr><tr><td><strong>4G</strong></td><td>455.8 ms</td><td>456.0 ms</td></tr><tr><td><strong>Fast 3G</strong></td><td>507.3 ms</td><td>507.0 ms</td></tr><tr><td><strong>Slow 3G</strong></td><td>845.7 ms</td><td>846.0 ms</td></tr></tbody></table></div></details>
-  </section>
-
-  <h2>User Capacity (Crash Test)</h2>
-  <section class="card">
-    <p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Anonymous traffic drops:</strong> ⚠️ Begins to struggle at <strong>20 concurrent users</strong>.</p><details><summary class="details-btn">View Anonymous Capacity Graph</summary><div style="margin-top:1rem; margin-bottom:2rem;">
+        </div></div></section>
+<h2>Lighthouse Comparison</h2><section class="card"><div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">💡 <i>Lighthouse CLI not installed.</i></div></section>
+<h2>Performance Under Normal Traffic</h2><section class="card"><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Public Load Typical Speed:</strong> 2108.1 ms.</p><details><summary class="details-btn">View Anonymous Variability Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50</th><th>p95</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody><tr><td><strong>Initial Paint Time (FCP)</strong></td><td>2144.0 ms</td><td style='color:#10B981;font-weight:700'>2225.6 ms</td><td>2032.0 ms</td><td>2228.0 ms</td><td>± 82.88</td></tr><tr><td><strong>Main Content Load Time (LCP)</strong></td><td>2108.1 ms</td><td style='color:#10B981;font-weight:700'>2311.16 ms</td><td>1946.5 ms</td><td>2311.9 ms</td><td>± 162.36</td></tr><tr><td><strong>Server Response (TTFB)</strong></td><td>237.0 ms</td><td style='color:#10B981;font-weight:700'>240.2 ms</td><td>231.0 ms</td><td>241.0 ms</td><td>± 3.58</td></tr><tr><td><strong>Visual Stability (CLS)</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Tbt</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Total Load Time</strong></td><td>2108.0 ms</td><td style='color:#10B981;font-weight:700'>2311.2 ms</td><td>1947.0 ms</td><td>2312.0 ms</td><td>± 162.19</td></tr><tr><td><strong>Dom_Content_Loaded</strong></td><td>1184.0 ms</td><td style='color:#10B981;font-weight:700'>1220.2 ms</td><td>1109.0 ms</td><td>1229.0 ms</td><td>± 50.27</td></tr></tbody></table></div></details><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Authenticated Full-Stack Speed:</strong> 482.6 ms.</p><details><summary class="details-btn">View Authenticated Variability Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50</th><th>p95</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody><tr><td><strong>Initial Paint Time (FCP)</strong></td><td>764.0 ms</td><td style='color:#10B981;font-weight:700'>784.0 ms</td><td>736.0 ms</td><td>788.0 ms</td><td>± 19.31</td></tr><tr><td><strong>Main Content Load Time (LCP)</strong></td><td>482.6 ms</td><td style='color:#10B981;font-weight:700'>488.42 ms</td><td>478.0 ms</td><td>488.8 ms</td><td>± 4.22</td></tr><tr><td><strong>Server Response (TTFB)</strong></td><td>232.0 ms</td><td style='color:#10B981;font-weight:700'>235.6 ms</td><td>232.0 ms</td><td>236.0 ms</td><td>± 1.79</td></tr><tr><td><strong>Visual Stability (CLS)</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Tbt</strong></td><td>0.0 ms</td><td style='color:#10B981;font-weight:700'>0.0 ms</td><td>0.0 ms</td><td>0.0 ms</td><td>± 0.0</td></tr><tr><td><strong>Total Load Time</strong></td><td>483.0 ms</td><td style='color:#10B981;font-weight:700'>488.6 ms</td><td>478.0 ms</td><td>489.0 ms</td><td>± 4.24</td></tr><tr><td><strong>Dom_Content_Loaded</strong></td><td>249.0 ms</td><td style='color:#10B981;font-weight:700'>252.8 ms</td><td>243.0 ms</td><td>253.0 ms</td><td>± 4.8</td></tr></tbody></table></div></details></section>
+<h2>Performance on Slow Internet</h2><section class="card"><p style='margin-bottom:1.5rem;font-size:1.1rem;'>We simulated slow internet connections (like 3G mobile networks).</p><details><summary class="details-btn">View Anonymous Throttling Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load</th></tr></thead><tbody><tr><td><strong>Broadband</strong></td><td>1954.6 ms</td><td>1955.0 ms</td></tr><tr><td><strong>4G</strong></td><td>2194.9 ms</td><td>2195.0 ms</td></tr><tr><td><strong>Fast 3G</strong></td><td>3464.6 ms</td><td>3465.0 ms</td></tr><tr><td><strong>Slow 3G</strong></td><td>8048.4 ms</td><td>8048.0 ms</td></tr></tbody></table></div></details><details><summary class="details-btn">View Authenticated Throttling Data</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load</th></tr></thead><tbody><tr><td><strong>Broadband</strong></td><td>473.3 ms</td><td>473.0 ms</td></tr><tr><td><strong>4G</strong></td><td>480.4 ms</td><td>480.0 ms</td></tr><tr><td><strong>Fast 3G</strong></td><td>488.3 ms</td><td>488.0 ms</td></tr><tr><td><strong>Slow 3G</strong></td><td>841.5 ms</td><td>842.0 ms</td></tr></tbody></table></div></details></section>
+<h2>User Capacity (Crash Test)</h2><section class="card"><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Anonymous traffic drops:</strong> ⚠️ Begins to struggle at <strong>20 concurrent users</strong>.</p><details><summary class="details-btn">View Anonymous Capacity Graph</summary><div style="margin-top:1rem; margin-bottom:2rem;">
             <div class="ramp-row">
               <div class="ramp-label">1 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 30%; background: linear-gradient(90deg, #10B981, #047857);">2004ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 34%; background: linear-gradient(90deg, #10B981, #047857);">2096ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">2 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 33%; background: linear-gradient(90deg, #10B981, #047857);">2224ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 34%; background: linear-gradient(90deg, #10B981, #047857);">2110ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">5 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 36%; background: linear-gradient(90deg, #10B981, #047857);">2396ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 36%; background: linear-gradient(90deg, #10B981, #047857);">2196ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">10 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 48%; background: linear-gradient(90deg, #10B981, #047857);">3250ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 51%; background: linear-gradient(90deg, #10B981, #047857);">3126ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">20 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 100%; background: linear-gradient(90deg, #EF4444, #B91C1C);">6652ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 100%; background: linear-gradient(90deg, #EF4444, #B91C1C);">6085ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div></div></details><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Login Storm authentications:</strong> ✅ Stable at max load.</p><details><summary class="details-btn">View Authenticated Capacity Graph</summary><div style="margin-top:1rem; margin-bottom:2rem;">
             <div class="ramp-row">
               <div class="ramp-label">1 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 5%; background: linear-gradient(90deg, #10B981, #047857);">0ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 42%; background: linear-gradient(90deg, #10B981, #047857);">527ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">2 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 33%; background: linear-gradient(90deg, #10B981, #047857);">495ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 38%; background: linear-gradient(90deg, #10B981, #047857);">488ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">5 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 38%; background: linear-gradient(90deg, #10B981, #047857);">571ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 39%; background: linear-gradient(90deg, #10B981, #047857);">492ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">10 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 48%; background: linear-gradient(90deg, #10B981, #047857);">722ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 50%; background: linear-gradient(90deg, #10B981, #047857);">637ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
             </div>
             <div class="ramp-row">
               <div class="ramp-label">20 Users</div>
-              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 100%; background: linear-gradient(90deg, #10B981, #047857);">1475ms</div></div>
+              <div class="ramp-bar-track"><div class="ramp-bar-fill" style="width: 100%; background: linear-gradient(90deg, #10B981, #047857);">1254ms</div></div>
               <div class="ramp-meta"><span style="color:#10B981;font-weight:700">0.0% Err</span></div>
-            </div></div></details>
-  </section>
+            </div></div></details></section>
 
-  <h2>Page Size & Heavy Assets</h2>
-  <section class="card">
-    <p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Anonymous page size:</strong> 45 files totaling 0.4 MB.</p><details><summary class="details-btn">View Anonymous Raw Assets</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Type</th><th>Requests</th><th>Size</th><th>Avg ms</th></tr></thead><tbody><tr><td>script</td><td>20</td><td>281.4 KB</td><td>1341 ms</td></tr><tr><td>link</td><td>6</td><td>159.7 KB</td><td>830 ms</td></tr><tr><td>fetch</td><td>19</td><td>18.5 KB</td><td>249 ms</td></tr></tbody></table></div></details><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Authenticated page size:</strong> 45 files totaling 0.4 MB.</p><details><summary class="details-btn">View Authenticated Raw Assets</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Type</th><th>Requests</th><th>Size</th><th>Avg ms</th></tr></thead><tbody><tr><td>script</td><td>20</td><td>281.4 KB</td><td>1384 ms</td></tr><tr><td>link</td><td>6</td><td>159.7 KB</td><td>846 ms</td></tr><tr><td>fetch</td><td>19</td><td>18.5 KB</td><td>245 ms</td></tr></tbody></table></div></details>
-  </section>
-
-</div>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const bars = document.querySelectorAll('.ramp-bar-fill');
-    bars.forEach(bar => {
-      const target = bar.style.width;
-      bar.style.width = '0%';
-      setTimeout(() => { bar.style.width = target; }, 100);
-    });
-  });
-</script>
-</body>
-</html>
+<h2>Page size & Assets</h2><section class="card"><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Anonymous page size:</strong> 45 files totaling 0.4 MB.</p><details><summary class="details-btn">View Anonymous Raw Assets</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Type</th><th>Requests</th><th>Size</th><th>Avg ms</th></tr></thead><tbody><tr><td>script</td><td>20</td><td>281.4 KB</td><td>1301 ms</td></tr><tr><td>link</td><td>6</td><td>159.7 KB</td><td>833 ms</td></tr><tr><td>fetch</td><td>19</td><td>18.5 KB</td><td>245 ms</td></tr></tbody></table></div></details><p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>Authenticated page size:</strong> 45 files totaling 0.4 MB.</p><details><summary class="details-btn">View Authenticated Raw Assets</summary><div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Type</th><th>Requests</th><th>Size</th><th>Avg ms</th></tr></thead><tbody><tr><td>script</td><td>20</td><td>281.4 KB</td><td>1286 ms</td></tr><tr><td>link</td><td>6</td><td>159.7 KB</td><td>823 ms</td></tr><tr><td>fetch</td><td>19</td><td>18.5 KB</td><td>249 ms</td></tr></tbody></table></div></details></section>
+</div><script>document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll('.ramp-bar-fill').forEach(b=>{const t=b.style.width;b.style.width='0%';setTimeout(()=>{b.style.width=t;},100);});});</script></body></html>

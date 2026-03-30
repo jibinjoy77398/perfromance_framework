@@ -1,10 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Performance Report — nightflix</title>
-  
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Report — nightflix</title>
 <style>
   :root {
     --bg-color: #0B1120;
@@ -53,6 +47,11 @@
   .auth-stat-value { font-size: 2.5rem; font-weight: 900; color: #F59E0B; line-height:1; margin-bottom: 0.2rem; }
   .auth-stat-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 
+  /* Spike Analysis Card Specifics */
+  .spike-card { border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); }
+  .spike-value { font-size: 2rem; font-weight: 900; color: #EF4444; }
+  .spike-label { text-transform: uppercase; font-size: 0.75rem; color: #94A3B8; font-weight:600; }
+  
   .stat-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; margin-right: 0.5rem; color: #fff; }
 
   .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
@@ -80,75 +79,15 @@
   details[open] summary { border-bottom: 1px solid var(--card-border); margin-bottom: 1rem; }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head><body><div class="container">
+<header><h1>Executive Performance Report</h1><p class="subtitle">Report for <b>nightflix</b> (<a href="https://nightflix.lat/" style="color:#818CF8;" target="_blank">https://nightflix.lat/</a>) • March 30, 2026 at 10:21 AM • 191.7s</p></header>
+<section class="card"><div class="scorecard" style="--grade-color:#EF4444; --grade-shadow:rgba(239,68,68,0.3)"><div class="sc-left"><div class="grade-badge">F</div><div class="score-stats"><strong>Overall Health</strong><br><div style="margin-top:0.5rem"><span class="stat-pill" style="background:linear-gradient(135deg, #10B981, #059669)">0 Passed</span><span class="stat-pill" style="background:linear-gradient(135deg, #F59E0B, #D97706)">0 Warnings</span><span class="stat-pill" style="background:linear-gradient(135deg, #EF4444, #DC2626)">0 Failed</span></div><div style="font-size:0.9rem; margin-top:0.5rem">Scored against 0 thresholds.</div></div></div></div></section>
 
-</head>
-<body>
-<div class="container">
-  
-  <header style="margin-bottom: 2rem;">
-    <h1>Executive Performance Report</h1>
-    <p class="subtitle">Report for <b>nightflix</b> (<a href="https://nightflix.lat/" style="color:#818CF8;text-decoration:none" target="_blank">https://nightflix.lat/</a>) &nbsp;•&nbsp; Generated March 30, 2026 at 10:09 AM &nbsp;•&nbsp; Duration: 193.2s</p>
-  </header>
+<h2>User Experience Metrics</h2><section class="card"><div class="metrics-grid"></div></section>
+<h2>Lighthouse Comparison</h2><section class="card"><div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">💡 <i>Lighthouse CLI not installed.</i></div></section>
 
-  <section class="card">
-    <div class="scorecard" style="--grade-color:#EF4444; --grade-shadow:rgba(239,68,68,0.3)">
-      <div class="sc-left">
-        <div class="grade-badge">F</div>
-        <div class="score-stats">
-          <strong>Overall Health</strong><br>
-          <div style="margin-top:0.5rem">
-            <span class="stat-pill" style="background:linear-gradient(135deg, #10B981, #059669)">0 Passed</span>
-            <span class="stat-pill" style="background:linear-gradient(135deg, #F59E0B, #D97706)">0 Warnings</span>
-            <span class="stat-pill" style="background:linear-gradient(135deg, #EF4444, #DC2626)">0 Failed</span>
-          </div>
-          <div style="font-size:0.9rem; margin-top:0.5rem">Scored against 0 thresholds.</div>
-        </div>
-      </div>
-      
-    </div>
-  </section>
 
-  <h2>User Experience Metrics</h2>
-  <section class="card">
-    <div class="metrics-grid"></div>
-  </section>
 
-  <!-- NEW: improvement 2 — Lighthouse Comparison -->
-  <h2>Lighthouse Comparison</h2>
-  <section class="card">
-    <div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">💡 <i>Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison.</i></div>
-  </section>
 
-  <h2>Performance Under Normal Traffic</h2>
-  <section class="card">
-    
-  </section>
-
-  <h2>Performance on Slow Internet (Mobile)</h2>
-  <section class="card">
-    <p style='margin-bottom:1.5rem;font-size:1.1rem;'>We simulated slow internet connections (like 3G mobile networks).</p>
-  </section>
-
-  <h2>User Capacity (Crash Test)</h2>
-  <section class="card">
-    
-  </section>
-
-  <h2>Page Size & Heavy Assets</h2>
-  <section class="card">
-    
-  </section>
-
-</div>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const bars = document.querySelectorAll('.ramp-bar-fill');
-    bars.forEach(bar => {
-      const target = bar.style.width;
-      bar.style.width = '0%';
-      setTimeout(() => { bar.style.width = target; }, 100);
-    });
-  });
-</script>
-</body>
-</html>
+<h2>Page size & Assets</h2><section class="card"></section>
+</div><script>document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll('.ramp-bar-fill').forEach(b=>{const t=b.style.width;b.style.width='0%';setTimeout(()=>{b.style.width=t;},100);});});</script></body></html>
