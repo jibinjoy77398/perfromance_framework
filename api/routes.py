@@ -21,6 +21,8 @@ from locator_service.models import ScanResponse
 _generator = LocatorGenerator()
 _cache = LocatorCache()
 
+router = APIRouter()
+
 # Dynamic path resolution for Docker/Cross-platform compatibility
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
