@@ -356,6 +356,9 @@ class PerformanceRunner:
         finally:
             await page.close()
             await ctx.close()
+
+    async def run_spike(self, requests: int, anonymous: bool = False) -> dict:
+        """🌪️  Hybrid Spike: Simultaneous HTTP bursts while measuring UI performance."""
         import aiohttp
         print(f"  🌪️  Hybrid Spike [{requests} instantaneous HTTP requests] … ", end="", flush=True)
         results = {"success": 0, "failed": 0, "avg_time": 0}
@@ -450,14 +453,9 @@ class PerformanceRunner:
                     if len(modes) > 1:
                         print(f"\n  [{modes.index(mode)+1}/{len(modes)}] {'🕵️ Anonymous (Public Traffic)' if anon else '🔐 Authenticated (Private Traffic)'}")
                         
-                    # 1. Run Baseline (Provides P95 and core stats directly)
-                    # Updated to include Lighthouse Comparison results if available
+                    # 1. Core Performance & Lighthouse Comparison
+                    # This provides the single-run metrics used for report grading
                     metrics, eval_res, grade, auth_speed, lh_comp = await self.run_core_metrics(anonymous=anon)
-                    
-                    # Extract representative core metrics from baseline for grading
-                    # baseline_stats = await self.run_baseline(anonymous=anon)
-                    # wait, baseline_stats is already called below. 
-                    # Let's keep it simple and just use the first core metrics run for Lighthouse.
                     
                     # 2. Network/Stress Tests
                     spike_res = None
@@ -520,6 +518,8 @@ class PerformanceRunner:
             output_path=report_path,
             duration_seconds=duration
         )
+
+        return report_path
 
         try:
             # Use the first available mode for the main grade/stats
