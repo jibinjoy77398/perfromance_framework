@@ -17,7 +17,17 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Re-verify playwright browsers are installed (Playwright image usually has them, but this ensures consistency)
+# Install Node.js and Lighthouse CLI
+# 1. Update apt and install curl
+# 2. Setup NodeSource and install Node.js
+# 3. Install Lighthouse globally
+RUN apt-get update && apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g lighthouse && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Re-verify playwright browsers are installed
 RUN playwright install chromium
 
 # Copy the rest of the application code
