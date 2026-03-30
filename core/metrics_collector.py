@@ -164,6 +164,33 @@ class MetricsCollector:
         })
         print("  📡 Fast 3G Throttling Applied (150ms / 1.6Mbps)")
 
+    # NEW: interaction simulation for TBT/INP accuracy (Improvement 1)
+    async def simulate_interactions(self) -> None:
+        """Simulates synthetic user behavior to trigger TBT and INP metrics."""
+        original_url = self.page.url
+        try:
+            # 1. Click centre to trigger INP
+            viewport = self.page.viewport_size or {"width": 1280, "height": 720}
+            await self.page.mouse.click(viewport["width"] / 2, viewport["height"] / 2)
+            await self.page.wait_for_timeout(300)
+
+            # 2. Key interactions
+            for _ in range(3):
+                await self.page.keyboard.press("Tab")
+                await self.page.wait_for_timeout(100)
+
+            # 3. Hover/Move interactions
+            await self.page.mouse.move(viewport["width"] * 0.25, viewport["height"] * 0.5)
+            await self.page.mouse.move(viewport["width"] * 0.75, viewport["height"] * 0.5)
+            await self.page.wait_for_timeout(200)
+
+            # Navigation Protection
+            if self.page.url != original_url:
+                await self.page.go_back()
+                await self.page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:
+            pass # Silent pass if interaction fails
+
     def _on_request(self, req) -> None:
         self._network_requests.append({
             "url":           req.url,
@@ -201,6 +228,9 @@ class MetricsCollector:
             await self.page.wait_for_load_state("networkidle", timeout=10_000)
         except Exception:
             pass
+
+        # NEW: interaction simulation for TBT/INP accuracy
+        await self.simulate_interactions()
 
         # Synchronization: Reduced wait time (1s is usually enough for throttled paint events)
         await self.page.wait_for_timeout(1000)

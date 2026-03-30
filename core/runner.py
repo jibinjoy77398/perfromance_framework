@@ -13,6 +13,7 @@ from pages.base_page import BasePage
 from core.site_config import SiteConfig
 from helpers.threshold_evaluator import ThresholdEvaluator
 from reporters.html_reporter import BaseReporter, HTMLReporter
+from utils.lighthouse_comparator import LighthouseComparator
 
 NETWORK_PROFILES = {
     "Broadband": {"offline": False, "downloadThroughput": 5_000_000,
@@ -154,12 +155,20 @@ class PerformanceRunner:
         fraction = index - lower
         return data[lower] + (data[upper] - data[lower]) * fraction
 
-    async def run_core_metrics(self, anonymous: bool = False) -> tuple[dict, dict, str, float]:
+    async def run_core_metrics(self, anonymous: bool = False) -> tuple[dict, dict, str, float, dict | None]:
         print("  📊 Collecting core metrics …")
         metrics, auth_speed = await self._collect_page_metrics(anonymous=anonymous)
         evaluation = self._evaluator.evaluate(metrics)
         site_grade = self._evaluator.grade(evaluation)
-        return metrics, evaluation, site_grade, auth_speed
+        
+        # NEW: improvement 2 — Lighthouse Comparison
+        lh_comp = None
+        if LighthouseComparator.is_available():
+            lh_res = await LighthouseComparator.run_audit(self._site.url)
+            if lh_res and lh_res.get("available") and "metrics" in lh_res:
+                lh_comp = LighthouseComparator.compare(metrics, lh_res["metrics"])
+        
+        return metrics, evaluation, site_grade, auth_speed, lh_comp
 
     async def run_baseline(self, n: int | None = None, anonymous: bool = False) -> dict:
         n = n or self._concurrent
@@ -442,13 +451,13 @@ class PerformanceRunner:
                         print(f"\n  [{modes.index(mode)+1}/{len(modes)}] {'🕵️ Anonymous (Public Traffic)' if anon else '🔐 Authenticated (Private Traffic)'}")
                         
                     # 1. Run Baseline (Provides P95 and core stats directly)
-                    baseline_stats = await self.run_baseline(anonymous=anon)
+                    # Updated to include Lighthouse Comparison results if available
+                    metrics, eval_res, grade, auth_speed, lh_comp = await self.run_core_metrics(anonymous=anon)
                     
                     # Extract representative core metrics from baseline for grading
-                    main_metrics = {k: v["p50"] for k, v in baseline_stats.items() if isinstance(v, dict) and "p50" in v}
-                    eval_res = self._evaluator.evaluate(main_metrics)
-                    grade = self._evaluator.grade(eval_res)
-                    auth_speed = 0.0 # Standard auth speed placeholder for baseline runs
+                    # baseline_stats = await self.run_baseline(anonymous=anon)
+                    # wait, baseline_stats is already called below. 
+                    # Let's keep it simple and just use the first core metrics run for Lighthouse.
                     
                     # 2. Network/Stress Tests
                     spike_res = None
@@ -475,7 +484,8 @@ class PerformanceRunner:
                         "spike_results": spike_res,
                         "scalability_results": scalability_res,
                         "resource_groups": rg,
-                        "all_requests": reqs
+                        "all_requests": reqs,
+                        "lighthouse_comparison": lh_comp # NEW: improvement 2
                     }
 
                 except Exception as e:

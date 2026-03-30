@@ -277,6 +277,43 @@ class HTMLReporter(BaseReporter):
             html += "</tbody></table></div></details>"
         return html
 
+    # NEW: improvement 2 — Lighthouse Comparison UI
+    def _lighthouse_html(self, results: dict) -> str:
+        main_mode = "authenticated" if "authenticated" in results else "anonymous"
+        comp = results[main_mode].get("lighthouse_comparison")
+        
+        if not comp:
+            return '<div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">' \
+                   '💡 <i>Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison.</i>' \
+                   '</div>'
+
+        html = '<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Our Engine</th><th>Lighthouse</th><th>Diff %</th><th>Accurate</th></tr></thead><tbody>'
+        for key, data in comp.items():
+            if key == "score": continue
+            indicator = "✅" if data["accurate"] else "❌"
+            unit = " ms" if key != "cls" else ""
+            diff_str = f"{data['diff_pct']}%" if data['diff_pct'] is not None else "N/A"
+            
+            html += f"""
+            <tr>
+              <td><strong>{data['label']}</strong></td>
+              <td>{data['ours']}{unit}</td>
+              <td style="color:var(--text-muted)">{data['lighthouse']}{unit}</td>
+              <td style="color:{'#10B981' if data['accurate'] else '#EF4444'}">{diff_str}</td>
+              <td>{indicator}</td>
+            </tr>"""
+            
+        score = comp.get("score", {}).get("lighthouse_score", 0)
+        html += f"""
+        <tr style="background:rgba(129,140,248,0.1)">
+          <td><strong>Lighthouse Performance Score</strong></td>
+          <td colspan="3"></td>
+          <td style="font-weight:900; color:#818CF8; font-size:1.1rem;">{score:.0f}</td>
+        </tr>
+        """
+        html += "</tbody></table></div>"
+        return html
+
 
     def generate(
         self,
@@ -369,6 +406,12 @@ class HTMLReporter(BaseReporter):
   <h2>User Experience Metrics</h2>
   <section class="card">
     {self._metric_cards_html(results)}
+  </section>
+
+  <!-- NEW: improvement 2 — Lighthouse Comparison -->
+  <h2>Lighthouse Comparison</h2>
+  <section class="card">
+    {self._lighthouse_html(results)}
   </section>
 
   <h2>Performance Under Normal Traffic</h2>
