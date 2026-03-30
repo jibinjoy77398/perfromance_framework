@@ -2,6 +2,7 @@ import asyncio
 import json
 import shutil
 import time
+from pathlib import Path
 from typing import Optional, Dict
 
 class LighthouseComparator:
@@ -13,7 +14,21 @@ class LighthouseComparator:
     @staticmethod
     def is_available() -> bool:
         """Checks if the lighthouse CLI is installed in the current environment."""
-        return shutil.which("lighthouse") is not None
+        if shutil.which("lighthouse") is not None:
+            return True
+        # Fallback for common global install paths (Docker & Windows)
+        user_home = Path.home()
+        fallbacks = [
+            "/usr/local/bin/lighthouse", 
+            "/usr/bin/lighthouse", 
+            "/app/node_modules/.bin/lighthouse",
+            str(user_home / "AppData/Roaming/npm/lighthouse.cmd"),
+            "lighthouse.cmd"
+        ]
+        for p in fallbacks:
+            if shutil.which(p) or Path(p).exists():
+                return True
+        return False
 
     @staticmethod
     async def run_audit(url: str, timeout: int = 60) -> Dict:
@@ -35,13 +50,24 @@ class LighthouseComparator:
             "--quiet"
         ]
 
+        import os
+        use_shell = os.name == 'nt' # Use shell for .cmd on Windows
+        
         try:
             # Improvement 2: timeout handling
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL
-            )
+            if use_shell:
+                # On Windows, we must use shell=True or call 'lighthouse.cmd'
+                proc = await asyncio.create_subprocess_shell(
+                    f'lighthouse "{url}" --output=json --output-path=stdout --chrome-flags="--headless --no-sandbox" --only-categories=performance --quiet',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+            else:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
             
             try:
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
