@@ -37,7 +37,7 @@ class PerformanceRunner:
         evaluator: ThresholdEvaluator | None = None,
         reporter: BaseReporter | None = None,
         headless: bool = True,
-        concurrent: int = 5,
+        concurrent: int = 3,
         ramp_steps: list[int] | None = None,
         report_dir: str = "reports",
     ):
@@ -155,18 +155,16 @@ class PerformanceRunner:
         fraction = index - lower
         return data[lower] + (data[upper] - data[lower]) * fraction
 
-    async def run_core_metrics(self, anonymous: bool = False) -> tuple[dict, dict, str, float, dict | None]:
-        print("  📊 Collecting core metrics …")
+    async def run_core_metrics(self, anonymous: bool = False, lh_audit_res: dict | None = None) -> tuple[dict, dict, str, float, dict | None]:
+        print(f"  📊 Collecting core metrics ({'Public' if anonymous else 'User'}) …")
         metrics, auth_speed = await self._collect_page_metrics(anonymous=anonymous)
         evaluation = self._evaluator.evaluate(metrics)
         site_grade = self._evaluator.grade(evaluation)
         
-        # NEW: improvement 2 — Lighthouse Comparison
+        # Improvement 2 (Optimized) — Use the pre-calculated Lighthouse Comparison
         lh_comp = None
-        if LighthouseComparator.is_available():
-            lh_res = await LighthouseComparator.run_audit(self._site.url)
-            if lh_res and lh_res.get("available") and "metrics" in lh_res:
-                lh_comp = LighthouseComparator.compare(metrics, lh_res["metrics"])
+        if lh_audit_res and lh_audit_res.get("available") and "metrics" in lh_audit_res:
+            lh_comp = LighthouseComparator.compare(metrics, lh_audit_res["metrics"])
         
         return metrics, evaluation, site_grade, auth_speed, lh_comp
 
@@ -174,7 +172,13 @@ class PerformanceRunner:
         n = n or self._concurrent
         print(f"  ⚡ Baseline — {n} concurrent runs … ", end="", flush=True)
         tasks = [self._collect_page_metrics(anonymous=anonymous) for _ in range(n)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            # 🛡️ 120s Fail-Safe Timeout to prevent infinite hangs in Docker
+            results = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=120)
+        except asyncio.TimeoutError:
+            print("  ⚠️ ERROR: Baseline collection timed out after 120s! Proceeding with available metrics.")
+            return {}
+        
         valid = [r[0] for r in results if isinstance(r, tuple)]
         print(f"done ({len(valid)}/{n} ok)")
         if not valid:
@@ -201,13 +205,16 @@ class PerformanceRunner:
     async def run_network_stress(self, anonymous: bool = False) -> dict:
         results = {}
         for name in NETWORK_PROFILES:
-            print(f"  📡 Network stress [{name}] … ", end="", flush=True)
             try:
-                m, _ = await self._collect_page_metrics(network_profile=name, anonymous=anonymous)
+                # 🛡️ 180s Fail-Safe per network profile
+                m, _ = await asyncio.wait_for(self._collect_page_metrics(network_profile=name, anonymous=anonymous), timeout=180)
                 results[name] = m
                 lcp = self._safe_float(m.get('lcp'))
                 load = self._safe_float(m.get('load_time'))
                 print(f"LCP={lcp:.0f}ms  Load={load:.0f}ms")
+            except asyncio.TimeoutError:
+                print("⚠️ TIMEOUT (180s limit)")
+                results[name] = {"error": "Phase Timeout"}
             except Exception as e:
                 print(f"ERROR: {e}")
                 results[name] = {}
@@ -235,7 +242,13 @@ class PerformanceRunner:
                         result["status"] = "exception"; result["error"] = str(e)
                 return result
 
-            results = await asyncio.gather(*[_session() for _ in range(n)])
+            try:
+                # 🛡️ 180s Fail-Safe for the entire Breakpoint step (concurrency n)
+                results = await asyncio.wait_for(asyncio.gather(*[_session() for _ in range(n)]), timeout=180)
+            except asyncio.TimeoutError:
+                print(f"⚠️ STEP TIMEOUT (180s limit)")
+                results = [{"status": "timeout", "error": "Step Timeout", "load_time": 0, "ttfb": 0, "lcp": 0} for _ in range(n)]
+            
             ok = [r for r in results if r["status"] == "ok"]
             failed = [r for r in results if r["status"] != "ok"]
             error_rate = (len(failed) / n) * 100
@@ -435,8 +448,15 @@ class PerformanceRunner:
         t0 = time.monotonic()
         modes = ["anonymous", "authenticated"] if self._site.has_credentials else ["anonymous"]
         final_results = {}
+        
+        # 🎯 OPTIMIZATION: Run Lighthouse ONLY ONCE per site run.
+        # This saves ~40s per run without losing any data.
+        lh_audit_res = None
+        if LighthouseComparator.is_available():
+            lh_audit_res = await LighthouseComparator.run_audit(self._site.url, timeout=90)
 
         for mode in modes:
+            final_results[mode] = {}
             async with async_playwright() as p:
                 self._browser = await p.chromium.launch(
                     headless=self._headless,
@@ -444,7 +464,7 @@ class PerformanceRunner:
                         "--disable-extensions", 
                         "--no-sandbox",
                         "--disable-dev-shm-usage",           # Prevents restricted memory segment crashes
-                        "--js-flags=--max-old-space-size=8192", # Assign 8GB of RAM to V8 Engine
+                        "--js-flags=--max-old-space-size=512", # Assign 512MB of RAM to V8 Engine (Sane limit for concurrency)
                         "--disk-cache-size=1073741824"       # Allocate 1GB to local disk cache
                     ],
                 )
@@ -455,7 +475,7 @@ class PerformanceRunner:
                         
                     # 1. Core Performance & Lighthouse Comparison
                     # This provides the single-run metrics used for report grading
-                    metrics, eval_res, grade, auth_speed, lh_comp = await self.run_core_metrics(anonymous=anon)
+                    metrics, eval_res, grade, auth_speed, lh_comp = await self.run_core_metrics(anonymous=anon, lh_audit_res=lh_audit_res)
                     
                     # 2. Network/Stress Tests
                     spike_res = None

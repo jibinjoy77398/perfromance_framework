@@ -28,8 +28,8 @@ RUN apt-get update && apt-get install -y curl gnupg && \
 
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Re-verify playwright browsers are installed
-RUN playwright install chromium
+# Re-verify playwright browsers and OS dependencies are installed
+RUN playwright install --with-deps chromium
 
 # Link Playwright Chromium to system path so Lighthouse can find it
 RUN ln -s $(find /ms-playwright -name chrome -executable -type f | head -n 1) /usr/bin/google-chrome || true

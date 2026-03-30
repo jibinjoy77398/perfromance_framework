@@ -70,22 +70,34 @@ class LighthouseComparator:
                 )
             
             try:
-                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                if stderr:
+                    print(f"  [Lighthouse Stderr]: {stderr.decode('utf-8', errors='ignore')}")
             except asyncio.TimeoutError:
                 try:
                     proc.kill()
                 except:
                     pass
-                return {"available": True, "error": "timeout"}
+                return {"available": True, "error": f"Lighthouse audit timed out ({timeout}s limit)"}
 
             if proc.returncode != 0:
-                return {"available": True, "error": f"Lighthouse failed with code {proc.returncode}"}
+                # Capture possible error message from stdout/stderr
+                err_msg = stderr.decode('utf-8', errors='ignore') if stderr else "Check container logs."
+                return {"available": True, "error": f"Lighthouse failed (Code {proc.returncode}): {err_msg[:100]}..."}
 
-            data = json.loads(stdout.decode('utf-8'))
+            # Robustly find JSON in stdout
+            raw_stdout = stdout.decode('utf-8', errors='ignore').strip()
+            if not raw_stdout.startswith('{'):
+                start = raw_stdout.find('{')
+                if start != -1:
+                    raw_stdout = raw_stdout[start:]
+                else:
+                    return {"available": True, "error": "Lighthouse did not return valid JSON results."}
+
+            data = json.loads(raw_stdout)
             audits = data.get("audits", {})
             categories = data.get("categories", {})
             
-            # Extraction logic per Improvement 2
             return {
                 "available": True,
                 "metrics": {
@@ -98,6 +110,7 @@ class LighthouseComparator:
                 }
             }
         except Exception as e:
+            print(f"  ❌ Lighthouse Error: {str(e)}")
             return {"available": True, "error": str(e)}
 
     @staticmethod

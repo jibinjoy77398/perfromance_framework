@@ -704,11 +704,24 @@
                     document.getElementById("loader-spinner").style.display = "none";
                     
                     // NEW: progress bar polling
+                    let lastSuccessUpdate = Date.now();
+                    
                     window.pollingTimer = setInterval(async () => {
+                        // 🛰️ Pulse check: detect if backend hangs for > 35s
+                        if (Date.now() - lastSuccessUpdate > 35000) {
+                            clearInterval(window.pollingTimer);
+                            document.getElementById("progress-stage").innerText = "⚠️ Connection Timeout / Backend Hung";
+                            document.getElementById("progress-stage").style.color = "var(--error)";
+                            alert("The backend hasn't responded for 35 seconds. This usually means Docker has hung or experienced a resource deadlock. Please restart Docker Desktop.");
+                            cancelTest();
+                            return;
+                        }
+
                         try {
                             const pollRes = await fetch(`/progress/${taskId}`);
                             if (!pollRes.ok) return;
                             const status = await pollRes.json();
+                            lastSuccessUpdate = Date.now();
                             
                             // Update UI
                             document.getElementById("progress-bar").style.width = status.percent + "%";

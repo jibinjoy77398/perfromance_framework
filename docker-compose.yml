@@ -14,6 +14,13 @@ services:
       - ./database:/app/database
     env_file:
       - .env
+    shm_size: '2gb'
+    deploy:
+      resources:
+        limits:
+          memory: 8192MB
+        reservations:
+          memory: 2048MB
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
