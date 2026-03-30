@@ -18,12 +18,12 @@ from locator_service.scanner import PageScanner, ScanError
 from locator_service.locator_generator import LocatorGenerator
 from locator_service.models import ScanResponse
 
-router = APIRouter()
-
-# Shared instances (initialized at import, browser started via lifespan)
-_cache = LocatorCache()
-_scanner = PageScanner()
 _generator = LocatorGenerator()
+_cache = LocatorCache()
+
+# Dynamic path resolution for Docker/Cross-platform compatibility
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REPORTS_DIR = PROJECT_ROOT / "reports"
 
 
 @router.get("/scan", response_model=ScanResponse)
@@ -100,7 +100,6 @@ async def _background_perf_task(req: PerfRequest, report_id: str):
     Background worker that runs the test, generates the report, 
     and sends email notifications.
     """
-    BASE_DIR = r"C:\Users\chait\performanceframework"
     try:
         site = SiteConfig(
             name=req.url.split("//")[-1].split("/")[0],
@@ -111,7 +110,7 @@ async def _background_perf_task(req: PerfRequest, report_id: str):
         if req.username and req.password:
             site.credentials = Credentials(username=req.username, password=req.password)
             
-        runner = PerformanceRunner(site=site, headless=True, report_dir=os.path.join(BASE_DIR, "reports"))
+        runner = PerformanceRunner(site=site, headless=True, report_dir=str(REPORTS_DIR))
         
         # Determine enabled tests based on type
         enabled = None
@@ -164,11 +163,10 @@ async def run_performance_test(req: PerfRequest, background_tasks: BackgroundTas
 @router.get("/report-status")
 async def get_report_status(path: str):
     """Checks if a report file exists on disk."""
-    BASE_DIR = r"C:\Users\chait\performanceframework"
-    # Clean the path to get relative part
+    # Use the clean relative path
     rel_path = path.replace("/reports/", "")
-    full_path = os.path.join(BASE_DIR, "reports", rel_path)
-    exists = os.path.exists(full_path)
+    full_path = REPORTS_DIR / rel_path
+    exists = full_path.exists()
     return {
         "ready": exists,
         "url": path if exists else None
