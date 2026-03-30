@@ -14,6 +14,9 @@ playwright install chromium
 
 # 3. Run all tests
 python run.py
+
+# --- OR USE DOCKER ---
+docker-compose up
 ```
 
 ## Configuration
@@ -98,4 +101,35 @@ performanceframework/
 ├── reporters/           ← HTML report generator
 ├── utils/               ← threshold evaluator
 └── run.py               ← entry point
+
+## 🐳 Docker Support
+
+This framework is fully containerized for consistent testing and easy deployment.
+
+### Local Execution (Docker Compose)
+The easiest way to run the dashboard and API is using Docker Compose:
+
+```bash
+docker-compose up
+```
+This starts the FastAPI server on [http://localhost:8000](http://localhost:8000). Your local `reports/`, `config/`, and `database/` directories are mapped to the container so data is persisted.
+
+### Manual Docker Build & Run
+```bash
+# Build the image
+docker build -t j1b1n/performance-framework .
+
+# Run the server
+docker run -p 8000:8000 --env-file .env j1b1n/performance-framework
+
+# Run a specific test command
+docker run j1b1n/performance-framework python run.py --site "My App"
+```
+
+### CI/CD Integration
+A GitHub Action is included in `.github/workflows/docker-publish.yml` that automatically builds and pushes the image to Docker Hub on every push to `main`.
+
+**Required GitHub Secrets:**
+- `DOCKERHUB_USERNAME`: `j1b1n`
+- `DOCKERHUB_TOKEN`: Your [Docker Hub Access Token](https://hub.docker.com/settings/security)
 ```

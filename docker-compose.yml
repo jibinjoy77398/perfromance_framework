@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  perf-framework:
+    build: .
+    image: j1b1n/performance-framework:latest
+    container_name: performance-testing-hub
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount reports directory to persist generated test reports
+      - ./reports:/app/reports
+      # Mount config directory to allow editing sites.json without rebuilding
+      - ./config:/app/config
+      # Mount database directory to persist test results and discovery cache
+      - ./database:/app/database
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
