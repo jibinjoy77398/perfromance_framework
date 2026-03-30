@@ -112,6 +112,11 @@ class HTMLReporter(BaseReporter):
   .auth-stat-value { font-size: 2.5rem; font-weight: 900; color: #F59E0B; line-height:1; margin-bottom: 0.2rem; }
   .auth-stat-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 
+  /* Spike Analysis Card Specifics */
+  .spike-card { border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); }
+  .spike-value { font-size: 2rem; font-weight: 900; color: #EF4444; }
+  .spike-label { text-transform: uppercase; font-size: 0.75rem; color: #94A3B8; font-weight:600; }
+  
   .stat-pill { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; margin-right: 0.5rem; color: #fff; }
 
   .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
@@ -157,7 +162,6 @@ class HTMLReporter(BaseReporter):
     }
 
     def _metric_cards_html(self, results: dict) -> str:
-        # Display side-by-side if both exist, otherwise just main
         main_mode = "authenticated" if "authenticated" in results else "anonymous"
         eval_main = results[main_mode]["evaluation"]
         has_anon = "anonymous" in results and "authenticated" in results
@@ -167,13 +171,10 @@ class HTMLReporter(BaseReporter):
             unit = self._metric_unit(key)
             name = self.METRIC_NAMES.get(key, key.replace('_', ' ').title())
             desc = self.METRIC_DESCS.get(key, "Performance metric.")
-            
-            # Primary value (Authenticated usually)
             val_main = self._fmt(ev['value'])
             c_main = self._verdict_color(ev['verdict'])
             g_main = self._verdict_gradient(ev['verdict'])
             
-            # Comparison value (Anonymous)
             comp_html = ""
             if has_anon and key in results["anonymous"]["evaluation"]:
                 ev_anon = results["anonymous"]["evaluation"].get(key, {})
@@ -206,13 +207,11 @@ class HTMLReporter(BaseReporter):
         for mode, data in results.items():
             stats = data.get("baseline_stats")
             if not stats: continue
-            
             lcp_stat = stats.get("lcp", {}).get("p50", "?")
             title = "Public Load Typical Speed" if mode == "anonymous" else "Authenticated Full-Stack Speed"
             html += f"<p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>{title}:</strong> {lcp_stat} ms.</p>"
-            
             html += f'<details><summary class="details-btn">View {mode.title()} Variability Data</summary>'
-            html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50 (Median)</th><th>p95 (Worst Case)</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody>'
+            html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Metric</th><th>p50</th><th>p95</th><th>Min</th><th>Max</th><th>StdDev</th></tr></thead><tbody>'
             for v, s in stats.items():
                 p95_color = "#EF4444" if s["p95"] > 6000 else "#10B981"
                 name = self.METRIC_NAMES.get(v, v.title())
@@ -226,10 +225,10 @@ class HTMLReporter(BaseReporter):
             prof = data.get("network_stress")
             if not prof: continue
             html += f'<details><summary class="details-btn">View {mode.title()} Throttling Data</summary>'
-            html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load Time</th></tr></thead><tbody>'
+            html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Internet Speed</th><th>LCP</th><th>Load</th></tr></thead><tbody>'
             for p, m in prof.items():
-                lcp = float(m.get('lcp', 0)) if isinstance(m.get('lcp'), (int, float)) or (isinstance(m.get('lcp'), str) and m.get('lcp').replace('.','',1).isdigit()) else 0.0
-                load = float(m.get('load_time', 0)) if isinstance(m.get('load_time'), (int, float)) or (isinstance(m.get('load_time'), str) and m.get('load_time').replace('.','',1).isdigit()) else 0.0
+                lcp = float(m.get('lcp', 0))
+                load = float(m.get('load_time', 0))
                 html += f"<tr><td><strong>{p}</strong></td><td>{lcp:.1f} ms</td><td>{load:.1f} ms</td></tr>"
             html += "</tbody></table></div></details>"
         return html
@@ -239,20 +238,18 @@ class HTMLReporter(BaseReporter):
         for mode, data in results.items():
             ramp = data.get("ramp_results")
             if not ramp: continue
-            
             broke_at = next((r["users"] for r in ramp if r.get("error_rate_pct", 0) > 5 or r.get("p95_load_time", 0) > 6000), None)
             alert = f"⚠️ Begins to struggle at <strong>{broke_at} concurrent users</strong>." if broke_at else f"✅ Stable at max load."
             title = "Login Storm authentications" if mode == "authenticated" else "Anonymous traffic drops"
             html += f"<p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>{title}:</strong> {alert}</p>"
-            
             html += f'<details><summary class="details-btn">View {mode.title()} Capacity Graph</summary><div style="margin-top:1rem; margin-bottom:2rem;">'
-            max_p95 = max((r.get("p95_load_time", 0) for r in ramp), default=1) or 1
+            max_p95 = max((r.get("p95_load_time", 0) for r in ramp if isinstance(r.get("p95_load_time"), (int, float))), default=1) or 1
             for r in ramp:
-                broke = r.get("error_rate_pct", 0) > 5 or r.get("p95_load_time", 0) > 6000
+                p95_val = float(r.get('p95_load_time', 0))
+                err_val = float(r.get('error_rate_pct', 0))
+                broke = err_val > 5 or p95_val > 6000
                 color = "linear-gradient(90deg, #EF4444, #B91C1C)" if broke else "linear-gradient(90deg, #10B981, #047857)"
-                pct = min(100, max(5, int((float(r.get("p95_load_time", 0)) / max_p95) * 100)))
-                p95_val = float(r.get('p95_load_time',0))
-                err_val = float(r.get('error_rate_pct',0))
+                pct = min(100, max(5, int((p95_val / max_p95) * 100)))
                 html += f"""
             <div class="ramp-row">
               <div class="ramp-label">{r['users']} Users</div>
@@ -270,7 +267,6 @@ class HTMLReporter(BaseReporter):
             tkb = sum(g.get("total_size_kb", 0) for g in rg.values())
             trq = sum(g.get("count", 0) for g in rg.values())
             html += f"<p style='margin-bottom:0.5rem;font-size:1.1rem;'><strong>{mode.title()} page size:</strong> {trq} files totaling {tkb/1024:.1f} MB.</p>"
-            
             html += f'<details><summary class="details-btn">View {mode.title()} Raw Assets</summary>'
             html += '<div class="table-wrapper" style="margin-top:0.5rem; margin-bottom:1.5rem;"><table><thead><tr><th>Type</th><th>Requests</th><th>Size</th><th>Avg ms</th></tr></thead><tbody>'
             for rtype, rdata in sorted(rg.items(), key=lambda x: -x[1].get("total_size_kb", 0)):
@@ -278,184 +274,92 @@ class HTMLReporter(BaseReporter):
             html += "</tbody></table></div></details>"
         return html
 
-    # NEW: improvement 2 — Lighthouse Comparison UI
     def _lighthouse_html(self, results: dict) -> str:
         main_mode = "authenticated" if "authenticated" in results else "anonymous"
         comp = results[main_mode].get("lighthouse_comparison")
-        
         if not comp:
-            diagnostic = "Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison."
+            diagnostic = "Lighthouse CLI not installed."
             if LighthouseComparator.is_available():
                 diagnostic = "Lighthouse CLI is installed, but the audit was skipped or failed. This can happen if the site is not reachable from the container or timed out."
-            
-            return '<div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">' \
-                   f'💡 <i>{diagnostic}</i>' \
-                   '</div>'
-
+            return f'<div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">💡 <i>{diagnostic}</i></div>'
         html = '<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Our Engine</th><th>Lighthouse</th><th>Diff %</th><th>Accurate</th></tr></thead><tbody>'
         for key, data in comp.items():
             if key == "score": continue
             indicator = "✅" if data["accurate"] else "❌"
             unit = " ms" if key != "cls" else ""
             diff_str = f"{data['diff_pct']}%" if data['diff_pct'] is not None else "N/A"
-            
-            html += f"""
-            <tr>
-              <td><strong>{data['label']}</strong></td>
-              <td>{data['ours']}{unit}</td>
-              <td style="color:var(--text-muted)">{data['lighthouse']}{unit}</td>
-              <td style="color:{'#10B981' if data['accurate'] else '#EF4444'}">{diff_str}</td>
-              <td>{indicator}</td>
-            </tr>"""
-            
+            html += f"<tr><td><strong>{data['label']}</strong></td><td>{data['ours']}{unit}</td><td style='color:var(--text-muted)'>{data['lighthouse']}{unit}</td><td style='color:{'#10B981' if data['accurate'] else '#EF4444'}'>{diff_str}</td><td>{indicator}</td></tr>"
         score = comp.get("score", {}).get("lighthouse_score", 0)
-        html += f"""
-        <tr style="background:rgba(129,140,248,0.1)">
-          <td><strong>Lighthouse Performance Score</strong></td>
-          <td colspan="3"></td>
-          <td style="font-weight:900; color:#818CF8; font-size:1.1rem;">{score:.0f}</td>
-        </tr>
-        """
-        html += "</tbody></table></div>"
+        html += f'<tr style="background:rgba(129,140,248,0.1)"><td><strong>Lighthouse Performance Score</strong></td><td colspan="3"></td><td style="font-weight:900; color:#818CF8; font-size:1.1rem;">{score:.0f}</td></tr></tbody></table></div>'
         return html
 
+    def _spike_html(self, results: dict) -> str:
+        main_mode = "authenticated" if "authenticated" in results else "anonymous"
+        spike = results[main_mode].get("spike_results")
+        if not spike: return ""
+        success = spike.get('success', 0)
+        failed = spike.get('failed', 0)
+        total = success + failed
+        success_pct = (success / total) * 100 if total > 0 else 0
+        success_col = "#10B981" if success_pct > 90 else "#F59E0B" if success_pct > 50 else "#EF4444"
+        return f"""
+        <div class="card spike-card">
+          <div class="scorecard">
+            <div style="flex:1;"><div class="spike-label">Burst Success Rate</div><div class="spike-value" style="color:{success_col}">{success_pct:.1f}%</div></div>
+            <div style="flex:1;"><div class="spike-label">Avg Response Time</div><div class="spike-value" style="color:#60A5FA;">{spike.get('avg_time', 0):.0f}ms</div></div>
+            <div style="flex:1;"><div class="spike-label">Burst Distribution</div><div style="font-size:1.5rem; font-weight:800; color:var(--text-main); margin-top:0.5rem;"><span style="color:#10B981">{success} OK</span> / <span style="color:#EF4444">{failed} ERR</span></div></div>
+          </div>
+          <div style="margin-top:2rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.1); font-size:0.9rem; color:var(--text-muted); line-height:1.6;">
+            🌪️ <b>Hybrid Spike Execution:</b> Simulating {total} simultaneous HTTP requests while navigating the UI. measures server resilience and CDN behavior under pressure.
+          </div>
+        </div>"""
 
-    def generate(
-        self,
-        site_name: str,
-        site_url: str,
-        results: dict,
-        output_path: Path,
-        duration_seconds: float = 0,
-    ) -> None:
-        
-        # Primary grade is Authenticated if exists, else Anonymous
+    def _scalability_html(self, results: dict) -> str:
+        main_mode = "authenticated" if "authenticated" in results else "anonymous"
+        scalability = results[main_mode].get("scalability_results")
+        if not scalability: return ""
+        return f'<div class="card" style="border-left:4px solid #8B5CF6;"><div style="font-size:1.25rem; font-weight:700; color:#A78BFA; margin-bottom:1rem;">Endurance Analysis</div><p style="color:var(--text-muted); line-height:1.6;">System held at max load. Final Success Rate: <b style="color:#10B981;">{scalability.get("success_rate", "100%")}</b> | Memory: <b style="color:#F59E0B;">{scalability.get("avg_js_heap_mb", 0):.1f} MB</b></p></div>'
+
+    def generate(self, site_name: str, site_url: str, results: dict, output_path: Path, duration_seconds: float = 0) -> None:
         main_mode = "authenticated" if "authenticated" in results else "anonymous"
         r_main = results[main_mode]
         eval_dict = r_main["evaluation"]
         grade = r_main["grade"]
-        
         passes = sum(1 for v in eval_dict.values() if v["verdict"] == "PASS")
         warns = sum(1 for v in eval_dict.values() if v["verdict"] == "WARN")
         fails = sum(1 for v in eval_dict.values() if v["verdict"] == "FAIL")
-
         grade_col = self._grade_color(grade)
         grade_shadow = self._grade_shadow(grade)
         ts = datetime.now().strftime("%B %d, %Y at %I:%M %p")
-
-        # Auth Cost Math
-        # "auth_overhead_cost = authenticated.load_time - anonymous.load_time"
         overhead_ms = 0.0
         auth_speed = r_main.get("auth_speed", 0)
-        has_overhead = False
-
         if "authenticated" in results and "anonymous" in results:
             auth_bp = results["authenticated"].get("baseline_stats", {}).get("load_time", {}).get("p50", 0)
             anon_bp = results["anonymous"].get("baseline_stats", {}).get("load_time", {}).get("p50", 0)
             overhead_ms = auth_bp - anon_bp
-            has_overhead = True
-
         overhead_html = ""
         if main_mode == "authenticated":
-            # Display Auth Setup
-            overhead_html += f"""
-            <div class="auth-overhead-card">
-              <div class="auth-stat-label">Authentication Engine</div>
-              <div class="auth-stat-value" style="color: #60A5FA;">{auth_speed:.0f}ms</div>
-              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom: 1rem;">Credential sumbit to redirect</div>
-            """
-            if has_overhead:
-                overhead_col = "#EF4444" if overhead_ms > 1000 else "#F59E0B" if overhead_ms > 0 else "#10B981"
-                overhead_html += f"""
-                  <div class="auth-stat-label">Auth Overhead Cost (Per Req)</div>
-                  <div class="auth-stat-value" style="color: {overhead_col};">+{overhead_ms:.0f}ms</div>
-                  <div style="font-size:0.8rem; color:var(--text-muted);">CDN Public vs Authenticated Delta</div>
-                """
-            overhead_html += "</div>"
-            
+            overhead_html += f'<div class="auth-overhead-card"><div class="auth-stat-label">Authentication Engine</div><div class="auth-stat-value" style="color: #60A5FA;">{auth_speed:.0f}ms</div>'
+            if "anonymous" in results:
+                o_col = "#EF4444" if overhead_ms > 1000 else "#F59E0B" if overhead_ms > 0 else "#10B981"
+                overhead_html += f'<div class="auth-stat-label">Auth Overhead</div><div class="auth-stat-value" style="color: {o_col};">+{overhead_ms:.0f}ms</div>'
+            overhead_html += '</div>'
 
-        html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Performance Report — {site_name}</title>
-  {self.CSS}
-</head>
-<body>
-<div class="container">
-  
-  <header style="margin-bottom: 2rem;">
-    <h1>Executive Performance Report</h1>
-    <p class="subtitle">Report for <b>{site_name}</b> (<a href="{site_url}" style="color:#818CF8;text-decoration:none" target="_blank">{site_url}</a>) &nbsp;•&nbsp; Generated {ts} &nbsp;•&nbsp; Duration: {duration_seconds:.1f}s</p>
-  </header>
-
-  <section class="card">
-    <div class="scorecard" style="--grade-color:{grade_col}; --grade-shadow:{grade_shadow}">
-      <div class="sc-left">
-        <div class="grade-badge">{grade}</div>
-        <div class="score-stats">
-          <strong>Overall Health</strong><br>
-          <div style="margin-top:0.5rem">
-            <span class="stat-pill" style="background:{self._verdict_gradient('PASS')}">{passes} Passed</span>
-            <span class="stat-pill" style="background:{self._verdict_gradient('WARN')}">{warns} Warnings</span>
-            <span class="stat-pill" style="background:{self._verdict_gradient('FAIL')}">{fails} Failed</span>
-          </div>
-          <div style="font-size:0.9rem; margin-top:0.5rem">Scored against {passes+warns+fails} thresholds.</div>
-        </div>
-      </div>
-      {overhead_html}
-    </div>
-  </section>
-
-  <h2>User Experience Metrics</h2>
-  <section class="card">
-    {self._metric_cards_html(results)}
-  </section>
-
-  <!-- NEW: improvement 2 — Lighthouse Comparison -->
-  <h2>Lighthouse Comparison</h2>
-  <section class="card">
-    {self._lighthouse_html(results)}
-  </section>
-
-  <h2>Performance Under Normal Traffic</h2>
-  <section class="card">
-    {self._baseline_table_html(results)}
-  </section>
-
-  <h2>Performance on Slow Internet (Mobile)</h2>
-  <section class="card">
-    {self._network_stress_html(results)}
-  </section>
-
-  <h2>User Capacity (Crash Test)</h2>
-  <section class="card">
-    {self._breakpoint_html(results)}
-  </section>
-
-  <h2>Page Size & Heavy Assets</h2>
-  <section class="card">
-    {self._resource_html(results)}
-  </section>
-
-</div>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {{
-    const bars = document.querySelectorAll('.ramp-bar-fill');
-    bars.forEach(bar => {{
-      const target = bar.style.width;
-      bar.style.width = '0%';
-      setTimeout(() => {{ bar.style.width = target; }}, 100);
-    }});
-  }});
-</script>
-</body>
-</html>"""
-
+        html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Report — {site_name}</title>{self.CSS}</head><body><div class="container">
+<header><h1>Executive Performance Report</h1><p class="subtitle">Report for <b>{site_name}</b> (<a href="{site_url}" style="color:#818CF8;" target="_blank">{site_url}</a>) • {ts} • {duration_seconds:.1f}s</p></header>
+<section class="card"><div class="scorecard" style="--grade-color:{grade_col}; --grade-shadow:{grade_shadow}"><div class="sc-left"><div class="grade-badge">{grade}</div><div class="score-stats"><strong>Overall Health</strong><br><div style="margin-top:0.5rem"><span class="stat-pill" style="background:{self._verdict_gradient('PASS')}">{passes} Passed</span><span class="stat-pill" style="background:{self._verdict_gradient('WARN')}">{warns} Warnings</span><span class="stat-pill" style="background:{self._verdict_gradient('FAIL')}">{fails} Failed</span></div><div style="font-size:0.9rem; margin-top:0.5rem">Scored against {passes+warns+fails} thresholds.</div></div></div>{overhead_html}</div></section>
+{f'<h2>🌪️ Hybrid Spike Analysis</h2>{self._spike_html(results)}' if r_main.get("spike_results") else ""}
+<h2>User Experience Metrics</h2><section class="card">{self._metric_cards_html(results)}</section>
+<h2>Lighthouse Comparison</h2><section class="card">{self._lighthouse_html(results)}</section>
+{f'<h2>Performance Under Normal Traffic</h2><section class="card">{self._baseline_table_html(results)}</section>' if r_main.get("baseline_stats") else ""}
+{f'<h2>Performance on Slow Internet</h2><section class="card">{self._network_stress_html(results)}</section>' if r_main.get("network_stress") else ""}
+{f'<h2>User Capacity (Crash Test)</h2><section class="card">{self._breakpoint_html(results)}</section>' if r_main.get("ramp_results") else ""}
+{f'<h2>Performance Degradation under Max Load</h2><section class="card">{self._scalability_html(results)}</section>' if r_main.get("scalability_results") else ""}
+<h2>Page size & Assets</h2><section class="card">{self._resource_html(results)}</section>
+</div><script>document.addEventListener("DOMContentLoaded",()=>{{document.querySelectorAll('.ramp-bar-fill').forEach(b=>{{const t=b.style.width;b.style.width='0%';setTimeout(()=>{{b.style.width=t;}},100);}});}});</script></body></html>"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(html, encoding="utf-8")
-        print(f"\n  📄 Exec report saved → {output_path}")
+        print(f"  📄 Exec report saved → {output_path}")
 
 def generate_report(**kwargs) -> None:
     HTMLReporter().generate(**kwargs)
