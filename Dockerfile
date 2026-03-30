@@ -18,17 +18,21 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Node.js and Lighthouse CLI
-# 1. Update apt and install curl
-# 2. Setup NodeSource and install Node.js
-# 3. Install Lighthouse globally
-RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
+RUN apt-get update && apt-get install -y curl gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && apt-get install -y nodejs && \
     npm install -g lighthouse && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Re-verify playwright browsers are installed
 RUN playwright install chromium
+
+# Link Playwright Chromium to system path so Lighthouse can find it
+RUN ln -s $(find /ms-playwright -name chrome -executable -type f | head -n 1) /usr/bin/google-chrome || true
 
 # Copy the rest of the application code
 COPY . .

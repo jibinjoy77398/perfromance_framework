@@ -7,6 +7,7 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
+from utils.lighthouse_comparator import LighthouseComparator
 
 
 class BaseReporter(ABC):
@@ -283,8 +284,12 @@ class HTMLReporter(BaseReporter):
         comp = results[main_mode].get("lighthouse_comparison")
         
         if not comp:
+            diagnostic = "Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison."
+            if LighthouseComparator.is_available():
+                diagnostic = "Lighthouse CLI is installed, but the audit was skipped or failed. This can happen if the site is not reachable from the container or timed out."
+            
             return '<div style="background:rgba(255,255,255,0.05); padding:1.5rem; border-radius:12px; border:1px dashed var(--card-border); color:var(--text-muted); font-size:0.9rem; text-align:center;">' \
-                   '💡 <i>Lighthouse CLI not installed — run <code>npm install -g lighthouse</code> to enable ground truth comparison.</i>' \
+                   f'💡 <i>{diagnostic}</i>' \
                    '</div>'
 
         html = '<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Our Engine</th><th>Lighthouse</th><th>Diff %</th><th>Accurate</th></tr></thead><tbody>'
