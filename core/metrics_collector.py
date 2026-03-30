@@ -23,7 +23,14 @@ _PERF_SCRIPT = """
         const fcp = fcpEntry ? Math.round(fcpEntry.startTime) : 0;
 
         const finalize = () => {
-            let lcp = window.__lcp || 0; // FIX: removed loadEventEnd fallback — was masking observer failure on fast sites
+            let lcp = window.__lcp || 0;
+            if (lcp === 0) {
+                const lcpEntries = performance.getEntriesByType('largest-contentful-paint');
+                if (lcpEntries.length > 0) {
+                    lcp = Math.round(lcpEntries[lcpEntries.length - 1].startTime);
+                }
+            }
+            // FIX: direct buffer read when observer hasn't flushed on fast sites
 
             const cls = window.__cls !== undefined ? parseFloat((window.__cls).toFixed(4)) : 0;
             const tbt = Math.round(window.__tbt || 0);
