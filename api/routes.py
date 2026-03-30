@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 import os
 import json
+import uuid
 from pathlib import Path
 
 from core.runner import PerformanceRunner
@@ -20,6 +21,10 @@ from locator_service.models import ScanResponse
 
 _generator = LocatorGenerator()
 _cache = LocatorCache()
+_scanner = PageScanner()
+
+# NEW: progress bar state store
+progress_store: Dict[str, Dict] = {}
 
 router = APIRouter()
 
@@ -82,6 +87,14 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
     }
 
+# NEW: progress bar endpoint
+@router.get("/progress/{task_id}")
+async def get_progress(task_id: str):
+    """Returns the current progress for a given task ID."""
+    if task_id not in progress_store:
+        raise HTTPException(status_code=404, detail="Task ID not found")
+    return progress_store[task_id]
+
 
 class PerfRequest(BaseModel):
     url: str
@@ -97,12 +110,21 @@ class PerfRequest(BaseModel):
     email_notification: Optional[str] = None
 
 
-async def _background_perf_task(req: PerfRequest, report_id: str):
+async def _background_perf_task(req: PerfRequest, report_id: str, task_id: str):
     """
     Background worker that runs the test, generates the report, 
     and sends email notifications.
     """
+    # NEW: progress bar - Initial State
+    progress_store[task_id] = {
+        "status": "running", "percent": 5, "stage": "Starting browser...",
+        "device": "desktop", "error": None
+    }
+    
     try:
+        # 15% - Collecting metrics (desktop-only logic currently)
+        progress_store[task_id].update({"percent": 15, "stage": "Collecting core metrics (desktop)..."})
+        
         site = SiteConfig(
             name=req.url.split("//")[-1].split("/")[0],
             url=req.url,
@@ -119,6 +141,11 @@ async def _background_perf_task(req: PerfRequest, report_id: str):
         if req.test_type == "spike": enabled = {"standard", "spike"}
         elif req.test_type == "scalability": enabled = {"standard", "scalability"}
 
+        # Perform the actual run - simulate progress jumps based on stages
+        # Logic jump: Skip mobile/tablet as they aren't in current core.runner.py
+        progress_store[task_id].update({"percent": 45, "stage": "Preparing suite..."})
+        progress_store[task_id].update({"percent": 55, "stage": "Running baseline tests..."})
+        
         # Perform the actual run
         res = await runner.run_all(
             enabled_tests=enabled,
@@ -126,6 +153,8 @@ async def _background_perf_task(req: PerfRequest, report_id: str):
             scalability_plateau=req.scalability_plateau or 0
         )
         report_path, final_results = res if isinstance(res, tuple) else (res, {})
+        
+        progress_store[task_id].update({"percent": 98, "stage": "Generating report..."})
 
         # Notify via Email with critical highlights
         if req.email_notification:
@@ -141,8 +170,17 @@ async def _background_perf_task(req: PerfRequest, report_id: str):
                     spike=main_data.get("spike_results"),
                     stress=main_data.get("ramp_results")
                 )
+        
+        # NEW: progress bar - Final State
+        progress_store[task_id].update({
+            "status": "complete", "percent": 100, "stage": "Complete",
+            "report_url": f"/reports/{report_path.parent.name}/{report_path.name}"
+        })
+        
     except Exception as e:
         print(f"  [CRITICAL] Background Task Failed: {e}")
+        if task_id in progress_store:
+            progress_store[task_id].update({"status": "error", "error": str(e), "stage": "Failed"})
 
 
 @router.post("/run-perf")
@@ -150,14 +188,17 @@ async def run_performance_test(req: PerfRequest, background_tasks: BackgroundTas
     """
     Triggers a performance sequence in the background.
     """
+    # Generate Task ID for real-time progress bar tracking
+    task_id = str(uuid.uuid4())
     report_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     site_name = req.url.split("//")[-1].split("/")[0].replace(".", "_")
     expected_path = f"{datetime.now().strftime('%Y-%m-%d')}/{site_name}_report.html"
     
-    background_tasks.add_task(_background_perf_task, req, report_id)
+    background_tasks.add_task(_background_perf_task, req, report_id, task_id)
     
     return {
         "status": "scheduled",
+        "task_id": task_id,
         "report_id": report_id,
         "expected_report": f"/reports/{expected_path}"
     }

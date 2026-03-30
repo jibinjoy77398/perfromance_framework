@@ -291,23 +291,44 @@
             line-height: 1.5;
         }
 
-        .btn-cancel {
-            margin-top: 2rem;
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--surface-border);
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: var(--transition);
-            font-weight: 500;
-        }
-
         .btn-cancel:hover {
             border-color: var(--error);
             color: var(--error);
             background: rgba(239, 68, 68, 0.1);
         }
+
+        /* NEW: progress bar */
+        .progress-container {
+            width: 100%;
+            max-width: 320px;
+            background: #090b10;
+            border: 1px solid var(--surface-border);
+            height: 12px;
+            border-radius: 99px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #63b3ed;
+            width: 0%;
+            transition: width 0.6s ease;
+            box-shadow: 0 0 15px rgba(99, 179, 237, 0.5);
+        }
+
+        .progress-details {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 320px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-stage { font-weight: 500; color: var(--text-primary); }
+        .progress-pct { font-family: monospace; }
 
         /* Framework Iframe */
         #report-frame {
@@ -453,10 +474,29 @@
 
             <!-- Spinner Overlay -->
             <div class="loader-overlay" id="loader">
-                <div class="orbital-loader"></div>
+                <div class="orbital-loader" id="loader-spinner"></div>
                 <div class="loading-text" id="loading-status">Authenticating Headless Node...</div>
-                <div class="loading-subtext">Background orchestration active. Long-running tests (Soak/Scalability) will continue even if you close this dashboard.</div>
-                <button type="button" class="btn-cancel" onclick="cancelTest()">Terminate Process</button>
+                
+                <!-- NEW: progress bar -->
+                <div id="progress-panel" style="display: none; width: 100%; flex-direction: column; align-items: center;">
+                    <div class="progress-container">
+                        <div class="progress-fill" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-details">
+                        <span id="progress-stage">Initializing...</span>
+                        <span class="progress-pct" id="progress-pct">0%</span>
+                    </div>
+                    <div id="progress-device" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">💻 Desktop Mode</div>
+                </div>
+
+                <div class="loading-subtext" id="loading-subtext">Background orchestration active. Long-running tests (Soak/Scalability) will continue even if you close this dashboard.</div>
+                
+                <div id="completion-actions" style="display: none; margin-top: 2rem; gap: 1rem;">
+                    <button id="view-report-btn" class="primary" style="padding: 0.75rem 2rem;">View Final Report</button>
+                    <button class="btn-cancel" onclick="cancelTest()" style="margin:0;">Close</button>
+                </div>
+
+                <button type="button" class="btn-cancel" id="cancel-btn" onclick="cancelTest()">Terminate Process</button>
             </div>
 
         </div>
@@ -657,40 +697,62 @@
                 if (!response.ok) throw new Error("Backend deployment failure");
                 const data = await response.json();
 
-                if (data.status === "scheduled" && data.expected_report) {
-                    const expectedReport = data.expected_report;
-                    statusText.innerText = "Audit in progress...";
+                if (data.task_id) {
+                    const taskId = data.task_id;
+                    document.getElementById("progress-panel").style.display = "flex";
+                    document.getElementById("loading-subtext").style.display = "none";
+                    document.getElementById("loader-spinner").style.display = "none";
                     
-                    // Polling logic
+                    // NEW: progress bar polling
                     window.pollingTimer = setInterval(async () => {
                         try {
-                            const pollRes = await fetch(`/report-status?path=${encodeURIComponent(expectedReport)}`);
+                            const pollRes = await fetch(`/progress/${taskId}`);
+                            if (!pollRes.ok) return;
                             const status = await pollRes.json();
                             
-                            if (status.ready) {
+                            // Update UI
+                            document.getElementById("progress-bar").style.width = status.percent + "%";
+                            document.getElementById("progress-pct").innerText = status.percent + "%";
+                            document.getElementById("progress-stage").innerText = status.stage;
+                            document.getElementById("loading-status").innerText = status.stage;
+                            
+                            if (status.device === "mobile") document.getElementById("progress-device").innerText = "📱 Mobile Mode";
+                            else if (status.device === "tablet") document.getElementById("progress-device").innerText = "平板 Tablet Mode";
+                            else document.getElementById("progress-device").innerText = "💻 Desktop Mode";
+
+                            if (status.status === "complete") {
                                 clearInterval(window.pollingTimer);
-                                clearInterval(statusInterval);
-                                loader.classList.remove("active");
-                                btn.disabled = false;
-                                openPastReport(status.url);
+                                document.getElementById("progress-stage").innerText = "Test Complete!";
+                                document.getElementById("progress-bar").style.background = "var(--success)";
+                                
+                                // Show View Report UI
+                                setTimeout(() => {
+                                    document.getElementById("progress-panel").style.display = "none";
+                                    document.getElementById("completion-actions").style.display = "flex";
+                                    document.getElementById("cancel-btn").style.display = "none";
+                                    document.getElementById("view-report-btn").onclick = () => {
+                                        loader.classList.remove("active");
+                                        btn.disabled = false;
+                                        openPastReport(status.report_url);
+                                    };
+                                }, 1500);
+                            } else if (status.status === "error") {
+                                clearInterval(window.pollingTimer);
+                                document.getElementById("progress-stage").innerText = "Error Occurred";
+                                document.getElementById("progress-stage").style.color = "var(--error)";
+                                document.getElementById("progress-bar").style.background = "var(--error)";
+                                alert("Test Error: " + status.error);
+                                cancelTest();
                             }
-                        } catch (e) { 
-                            console.error("Poll failed", e);
-                            clearInterval(window.pollingTimer); 
-                        }
-                    }, 3000);
+                        } catch (e) { console.error("Poll failed", e); }
+                    }, 1500);
                 } else {
-                    alert("Audit scheduled but no report path received.");
-                    loader.classList.remove("active");
-                    btn.disabled = false;
-                    clearInterval(statusInterval);
+                    alert("Audit scheduled but no task ID received.");
+                    cancelTest();
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') alert("Critical Error: " + err.message);
-                loader.classList.remove("active");
-                btn.disabled = false;
-                clearInterval(statusInterval);
-                if (window.pollingTimer) clearInterval(window.pollingTimer);
+                cancelTest();
             }
         }
     </script>
