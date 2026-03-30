@@ -23,11 +23,7 @@ _PERF_SCRIPT = """
         const fcp = fcpEntry ? Math.round(fcpEntry.startTime) : 0;
 
         const finalize = () => {
-            let lcp = window.__lcp || 0;
-            // FALLBACK: If LCP is still 0 after load, use loadEventEnd - fetchStart as proxy
-            if (lcp === 0 && nav.loadEventEnd) {
-                lcp = nav.loadEventEnd - nav.fetchStart;
-            }
+            let lcp = window.__lcp || 0; // FIX: removed loadEventEnd fallback — was masking observer failure on fast sites
 
             const cls = window.__cls !== undefined ? parseFloat((window.__cls).toFixed(4)) : 0;
             const tbt = Math.round(window.__tbt || 0);
@@ -86,20 +82,7 @@ _OBSERVER_SCRIPT = """
         }
       });
     });
-    lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-
-    // Disconnect only on user interaction or page hide — not on load
-    ['keydown', 'click', 'scroll', 'touchstart'].forEach((event) => {
-      window.addEventListener(event, () => {
-        lcpObserver.disconnect();
-      }, { once: true, passive: true });
-    });
-
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        lcpObserver.disconnect();
-      }
-    });
+    lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true }); // FIX: removed disconnect-on-interaction — conflicts with simulate_interactions()
 
     // CLS — cumulative layout shift (unchanged per user request)
     try {
