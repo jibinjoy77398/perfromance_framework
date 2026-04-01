@@ -3,772 +3,539 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performance Engine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>Performance Engine V2</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-dark: #09090b;
-            --surface-bg: rgba(24, 24, 27, 0.4);
+            --surface-bg: rgba(24, 24, 27, 0.6);
             --surface-border: rgba(255, 255, 255, 0.08);
             --text-primary: #fafafa;
             --text-secondary: #a1a1aa;
             --accent: #8b5cf6;
-            --accent-glow: rgba(139, 92, 246, 0.5);
             --accent-hover: #7c3aed;
             --error: #ef4444;
             --success: #10b981;
-            
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --cyan: #63b3ed;
+            --transition: all 0.3s ease;
         }
 
-        * {
-            box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-x: hidden;
-            position: relative;
-        }
+        * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { margin: 0; padding: 2rem; background: var(--bg-dark); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; }
 
         /* Animated Mesh Background */
         .bg-mesh {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: -1;
-            overflow: hidden;
+            position: fixed; inset: 0; z-index: -1;
             background: radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 40%),
-                        radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 40%),
-                        radial-gradient(circle at 50% 80%, rgba(236, 72, 153, 0.1), transparent 40%);
+                        radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 40%);
             animation: mesh-shift 20s ease-in-out infinite alternate;
         }
+        @keyframes mesh-shift { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(45deg); } }
 
-        @keyframes mesh-shift {
-            0% { transform: scale(1); filter: hue-rotate(0deg); }
-            100% { transform: scale(1.1); filter: hue-rotate(45deg); }
+        .container { flex: 1; max-width: 1500px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+
+        .panel {
+            background: var(--surface-bg); border: 1px solid var(--surface-border);
+            border-radius: 16px; padding: 1.5rem; backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; overflow: hidden;
         }
 
-        .container {
-            width: 100%;
-            max-width: 560px;
-            padding: 2rem;
-            z-index: 10;
-        }
-
-        /* Central Glass Panel */
-        .glass-panel {
-            background: var(--surface-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--surface-border);
-            border-radius: 24px;
-            padding: 3rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 2.25rem;
-            font-weight: 700;
-            letter-spacing: -0.05em;
-            background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header p {
-            margin: 0.5rem 0 0 0;
-            color: var(--text-secondary);
-            font-size: 1rem;
-            font-weight: 300;
-            line-height: 1.5;
-        }
-
-        .input-group {
-            position: relative;
-            margin-bottom: 1.5rem;
-        }
-
-        .input-icon {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            pointer-events: none;
-            display: flex;
-            align-items: center;
-        }
-
-        .input-icon svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        input {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--surface-border);
-            color: var(--text-primary);
-            padding: 1.125rem 1rem 1.125rem 3rem;
-            border-radius: 12px;
-            font-size: 1rem;
-            transition: var(--transition);
-        }
-
-        /* Placeholder coloring */
-        input::placeholder { color: #52525b; font-weight: 300; }
-
-        input:focus {
-            outline: none;
-            border-color: var(--accent);
-            background: rgba(0, 0, 0, 0.4);
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: var(--text-secondary);
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-            opacity: 0.6;
-        }
-
-        .password-toggle:hover { opacity: 1; color: var(--accent); }
-
-        /* Accordion for Optional Auth */
-        details {
-            background: rgba(0,0,0,0.15);
-            border: 1px solid var(--surface-border);
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            overflow: hidden;
-            transition: var(--transition);
-        }
-
-        summary {
-            padding: 1.25rem;
-            cursor: pointer;
-            font-weight: 500;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            user-select: none;
-            list-style: none; /* remove default arrow */
-        }
-
-        summary::-webkit-details-marker { display: none; }
+        h1 { font-size: 1.5rem; margin: 0 0 1.5rem 0; display: flex; align-items: center; justify-content: space-between; }
         
-        details[open] summary {
-            color: var(--accent);
-            border-bottom: 1px solid var(--surface-border);
+        .connection-indicator { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--error); box-shadow: 0 0 10px var(--error); transition: var(--transition); }
+        .dot.connected { background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+        .input-group { margin-bottom: 1.25rem; }
+        .input-group label { display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="url"], input[type="text"], input[type="number"], select {
+            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--surface-border);
+            color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.95rem; outline: none; transition: var(--transition);
         }
+        input:focus, select:focus { border-color: var(--accent); }
 
-        .auth-content {
-            padding: 1.5rem;
-            background: rgba(0,0,0,0.2);
+        .checkbox-group { display: flex; flex-direction: column; gap: 0.75rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--surface-border); margin-bottom: 1.5rem; }
+        .checkbox-label { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; cursor: pointer; user-select: none; }
+        .checkbox-label input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+        .btn {
+            width: 100%; padding: 0.8rem; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem;
+            cursor: pointer; transition: var(--transition); display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;
         }
+        .btn-primary { background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%); color: white; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4); }
+        .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--surface-border); }
+        .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid rgba(239,68,68,0.3); display: none; }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        .auth-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+        .tabs { display: flex; border-bottom: 1px solid var(--surface-border); margin-bottom: 0; background: rgba(0,0,0,0.2); overflow-x: auto; flex-wrap: nowrap; }
+        .tab-btn {
+            flex: 1; padding: 1rem 0.75rem; background: transparent; border: none; border-bottom: 2px solid transparent; white-space: nowrap;
+            color: var(--text-secondary); font-weight: 500; cursor: pointer; transition: var(--transition); font-size: 0.95rem; min-width: max-content;
         }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(255,255,255,0.02); }
+        .tab-btn:hover:not(.active) { color: white; }
 
-        /* Sexy Action Button */
-        button.primary {
-            width: 100%;
-            background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
-            color: white;
-            border: none;
-            padding: 1.25rem;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            cursor: pointer;
-            transition: var(--transition);
-            box-shadow: 0 8px 25px -5px var(--accent-glow);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-        }
+        .tab-content { display: none; padding: 1.5rem; flex: 1; overflow-y: auto; background: rgba(0,0,0,0.1); flex-direction: column; }
+        .tab-content.active { display: flex; }
 
-        button.primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 35px -5px var(--accent-glow);
-            filter: brightness(1.1);
-        }
+        /* Data Displays */
+        pre { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #a5b4fc; white-space: pre-wrap; word-wrap: break-word; }
+        .log-line { margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .log-time { color: var(--text-secondary); font-size: 0.75rem; margin-right: 0.75rem; }
+        .log-msg { color: var(--success); }
+        
+        .progress-box { background: #000; border-radius: 8px; width: 100%; margin: 1rem 0; overflow: hidden; display: none; border: 1px solid var(--surface-border); padding: 0.5rem 1rem; flex-direction: column;}
+        .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 99px; margin-bottom: 0.5rem; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--cyan); transition: width 0.3s ease; box-shadow: 0 0 10px var(--cyan); }
+        .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); }
 
-        button.primary:active { transform: translateY(0); }
-        button.primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .json-key { color: #818cf8; }
+        .json-string { color: #34d399; }
+        .json-number { color: #f472b6; }
+        .json-boolean { color: #fbbf24; }
 
-        /* Loading State Overlay */
-        .loader-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(9, 9, 11, 0.85);
-            backdrop-filter: blur(8px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: inherit;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s ease;
-            z-index: 20;
-        }
+        .empty-state { text-align: center; color: var(--text-secondary); margin-top: 3rem; font-size: 1rem; border: 1px dashed var(--surface-border); padding: 3rem; border-radius: 12px; }
 
-        .loader-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        .orbital-loader {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, transparent 0 340deg, var(--accent) 360deg);
-            animation: rotate 1s linear infinite;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .orbital-loader::before {
-            content: '';
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: var(--bg-dark);
-        }
-
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-
-        .loading-text {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-
-        .loading-subtext {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            text-align: center;
-            max-width: 85%;
-            font-weight: 300;
-            line-height: 1.5;
-        }
-
-        .btn-cancel:hover {
-            border-color: var(--error);
-            color: var(--error);
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        /* NEW: progress bar */
-        .progress-container {
-            width: 100%;
-            max-width: 320px;
-            background: #090b10;
-            border: 1px solid var(--surface-border);
-            height: 12px;
-            border-radius: 99px;
-            overflow: hidden;
-            margin: 1.5rem 0;
-            position: relative;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #63b3ed;
-            width: 0%;
-            transition: width 0.6s ease;
-            box-shadow: 0 0 15px rgba(99, 179, 237, 0.5);
-        }
-
-        .progress-details {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 320px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .progress-stage { font-weight: 500; color: var(--text-primary); }
-        .progress-pct { font-family: monospace; }
-
-        /* Framework Iframe */
-        #report-frame {
-            position: fixed;
-            inset: 0;
-            width: 100vw;
-            height: 100vh;
-            border: none;
-            background: #fff; /* Reports are typically lighter, keeping neutral bg helps */
-            opacity: 0;
-            pointer-events: none;
-            z-index: 100;
-            transition: opacity 0.6s ease;
-        }
-
-        #report-frame.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        #back-btn {
-            position: fixed;
-            top: 1.5rem;
-            right: 1.5rem;
-            z-index: 200;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 0.75rem 1.5rem;
-            border-radius: 99px;
-            color: white;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            display: none;
-            align-items: center;
-            gap: 0.5rem;
-            transition: var(--transition);
-        }
-
-        #back-btn:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        /* Icons */
-        .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        #iframe-container { width: 100%; height: 100%; border: none; border-radius: 8px; background: #fff;}
+        
+        .history-card { background: rgba(255,255,255,0.03); border: 1px solid var(--surface-border); border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; transition: var(--transition); cursor: pointer; }
+        .history-card:hover { background: rgba(255,255,255,0.07); transform: scale(1.01); }
+        .grade-badge { padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 0.8rem; color: white; margin-right: 0.75rem; }
+        .grade-A { background: var(--success); } .grade-B { background: #3b82f6; } .grade-C { background: #eab308; } .grade-D { background: #f97316; } .grade-F { background: var(--error); }
     </style>
 </head>
 <body>
     <div class="bg-mesh"></div>
 
-    <div class="container" id="main-container">
-        <div class="glass-panel">
+    <div class="container">
+        <!-- Sidebar Controls -->
+        <div class="panel" style="overflow-y: auto;">
+            <h1>
+                Engine Config
+                <div class="connection-indicator">
+                    <div class="dot" id="conn-dot"></div>
+                    <span id="conn-text">Checking...</span>
+                </div>
+            </h1>
+
+            <div class="input-group">
+                <label>Target URL</label>
+                <input type="url" id="target-url" placeholder="https://example.com" value="https://nightflix.lat" autocomplete="off">
+            </div>
+
+            <div class="input-group">
+                <label>Test Type Strategy</label>
+                <select id="test-type">
+                    <option value="standard">Standard Execution</option>
+                    <option value="spike">Spike Test (Stress)</option>
+                    <option value="scalability">Scalability Plateau</option>
+                </select>
+            </div>
+
+            <div class="checkbox-group">
+                <label class="checkbox-label"><input type="checkbox" id="include_network" checked> Analyze Network Traffic</label>
+                <label class="checkbox-label"><input type="checkbox" id="include_resources" checked> Analyze Resources & Memory</label>
+                <label class="checkbox-label"><input type="checkbox" id="include_breakpoint"> Stress & Breakpoint Tuning</label>
+                <label class="checkbox-label"><input type="checkbox" id="include_dos"> Emulate High-Concurrency DoS</label>
+            </div>
+
+            <div class="progress-box" id="progress-container">
+                <div class="progress-bar-container">
+                    <div class="progress-fill" id="progress-bar"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="timer-text">00:00 s</span>
+                    <span style="opacity:0.6;">(Est: ~45s)</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="btn-full" onclick="startExecution(false)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Run Full Test
+            </button>
+            <button class="btn btn-secondary" id="btn-base" onclick="startExecution(true)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l2-9 5 18 3-9h6"></path></svg>
+                Baseline Only
+            </button>
+            <button class="btn btn-danger" id="btn-stop" onclick="stopExecution()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                Abort Execution
+            </button>
+
+            <div style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid var(--surface-border); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="exportData('json')" style="flex:1; margin: 0; font-size: 0.85rem;" id="btn-exp-json" disabled>Export JSON</button>
+                <button class="btn btn-secondary" onclick="exportData('csv')" style="flex:1; margin: 0; font-size: 0.85rem;" id="btn-exp-csv" disabled>Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Main Output Panel -->
+        <div class="panel" style="padding: 0;">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('log')">Live Log</button>
+                <button class="tab-btn" onclick="switchTab('report')" id="tab-btn-report">Final Report (HTML)</button>
+                <button class="tab-btn" onclick="switchTab('results')">JSON Metrics</button>
+                <button class="tab-btn" onclick="switchTab('breakpoint')">Breakpoint Stats</button>
+                <button class="tab-btn" onclick="switchTab('network')">Network Trace</button>
+                <button class="tab-btn" onclick="switchTab('history')" onclick="loadHistory()">History</button>
+            </div>
+
+            <div id="tab-log" class="tab-content active" style="background:#000;">
+                <div id="log-output">
+                    <div style="color:var(--text-secondary); font-family:monospace;">[SYSTEM] Dashboard Initialized.</div>
+                </div>
+            </div>
             
-            <div class="header">
-                <!-- FIX: Guaranteed LCP Candidate -->
-                <h1 style="font-size: 2.25rem; margin-bottom: 0.5rem;">Performance Engine</h1>
-                <p>Enterprise diagnostics and locator discovery hub.</p>
+            <div id="tab-report" class="tab-content" style="padding: 0;">
+                <iframe id="iframe-container" src="about:blank"></iframe>
+                <div id="report-empty" class="empty-state">No report generated yet. Run a test first.</div>
             </div>
-
-            <!-- Tab Switcher -->
-            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 1rem;">
-                <button onclick="switchTab('perf')" id="tab-perf" style="background:none; border:none; color:var(--accent); font-weight:600; cursor:pointer; font-size:1rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; transition: var(--transition);">Performance</button>
-                <button onclick="switchTab('history')" id="tab-history" style="background:none; border:none; color:var(--text-secondary); font-weight:500; cursor:pointer; font-size:1rem; padding-bottom: 0.5rem; transition: var(--transition);">History</button>
-            </div>
-
-            <!-- Performance Tab -->
-            <div id="section-perf">
-                <!-- ... existing perf form ... -->
-                <form id="perf-form" onsubmit="runTest(event)">
-                    <div class="input-group">
-                        <div class="input-icon">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                        </div>
-                        <input type="url" id="url" placeholder="https://myapp.com" required autocomplete="off">
-                    </div>
-
-                    <details>
-                        <summary>
-                            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                            Advanced Orchestration
-                        </summary>
-                        <div class="auth-content">
-                            <!-- Auth Grid -->
-                            <div class="auth-grid" style="margin-bottom: 1.5rem;">
-                                <div class="input-group" style="margin: 0;">
-                                    <input type="text" id="username" placeholder="Username" style="padding-left: 1rem;">
-                                </div>
-                                <div class="input-group" style="margin: 0;">
-                                    <input type="password" id="password" placeholder="Password" style="padding-left: 1rem;">
-                                </div>
-                            </div>
-
-                            <!-- Test Type Selection -->
-                            <div style="margin-bottom: 1.5rem;">
-                                <label style="display:block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform:uppercase;">Test Methodology</label>
-                                <select id="test-type" style="width:100%; background:rgba(0,0,0,0.3); color:white; border:1px solid var(--surface-border); border-radius:8px; padding:0.75rem; font-family:inherit;">
-                                    <option value="standard">Standard Execution (All Modes)</option>
-                                    <option value="spike">Hybrid Spike (HTTP + UI)</option>
-                                    <option value="scalability">Scalability Plateau (Stress)</option>
-                                </select>
-                            </div>
-
-                            <!-- Dynamic Inputs for Special Tests -->
-                            <div id="extra-params" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-                                <div class="input-group" style="margin: 0;">
-                                    <input type="number" id="spike-reqs" placeholder="Spike (Reqs)" style="padding-left: 1rem;" title="Instantaneous HTTP requests">
-                                </div>
-                                <div class="input-group" style="margin: 0;">
-                                    <input type="number" id="scalability-plateau" placeholder="Plateau (Mins)" style="padding-left: 1rem;" title="Minutes to hold max load">
-                                </div>
-                            </div>
-
-                            <!-- Notifications -->
-                            <div class="input-group" style="margin-bottom: 1.5rem;">
-                                <div class="input-icon">
-                                    <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                                </div>
-                                <input type="email" id="notify-email" placeholder="Email results to..." style="padding-left: 3rem;" value="jibin.joy77398@gmail.com">
-                            </div>
-
-                            <div style="padding-top: 1rem; border-top: 1px dotted var(--surface-border);">
-                                <label for="journey-json" style="display:block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">Synthetic Transaction Script</label>
-                                <textarea id="journey-json" placeholder='[ {"action": "click", "selector": "#login-btn"} ]' style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--surface-border); color: var(--text-primary); padding: 1rem; border-radius: 12px; font-family: monospace; font-size: 0.9rem; resize: vertical; min-height: 80px;"></textarea>
-                            </div>
-                        </div>
-                    </details>
-
-                    <button type="submit" id="submit-btn" class="primary">
-                        Dispatch Performance Suite
-                    </button>
-                </form>
-            </div>
-
-            <!-- History Tab -->
-            <div id="section-history" style="display: none;">
-                <div id="history-list" style="margin-top: 1rem; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
-                    <p style="text-align:center; color: var(--text-secondary); margin-top: 2rem;">Loading audit history...</p>
+            
+            <div id="tab-results" class="tab-content"><div id="data-results" class="empty-state">Waiting for execution...</div></div>
+            <div id="tab-breakpoint" class="tab-content"><div id="data-breakpoint" class="empty-state">Waiting for execution...</div></div>
+            <div id="tab-network" class="tab-content"><div id="data-network" class="empty-state">Waiting for execution...</div></div>
+            
+            <div id="tab-history" class="tab-content">
+                <div id="history-header" style="margin-bottom: 2rem;">
+                    <h2>Audit History</h2>
+                    <p style="color:var(--text-secondary); font-size:0.9rem;">Archived reports tracked by SQLite</p>
                 </div>
+                <div id="history-list"></div>
+                <div id="history-empty" class="empty-state" style="display:none;">No historical records found.</div>
             </div>
-
-            <!-- Spinner Overlay -->
-            <div class="loader-overlay" id="loader">
-                <div class="orbital-loader" id="loader-spinner"></div>
-                <div class="loading-text" id="loading-status">Authenticating Headless Node...</div>
-                
-                <!-- NEW: progress bar -->
-                <div id="progress-panel" style="display: none; width: 100%; flex-direction: column; align-items: center;">
-                    <div class="progress-container">
-                        <div class="progress-fill" id="progress-bar"></div>
-                    </div>
-                    <div class="progress-details">
-                        <span id="progress-stage">Initializing...</span>
-                        <span class="progress-pct" id="progress-pct">0%</span>
-                    </div>
-                    <div id="progress-device" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">💻 Desktop Mode</div>
-                </div>
-
-                <div class="loading-subtext" id="loading-subtext">Background orchestration active. Long-running tests (Soak/Scalability) will continue even if you close this dashboard.</div>
-                
-                <div id="completion-actions" style="display: none; margin-top: 2rem; gap: 1rem;">
-                    <button id="view-report-btn" class="primary" style="padding: 0.75rem 2rem;">View Final Report</button>
-                    <button class="btn-cancel" onclick="cancelTest()" style="margin:0;">Close</button>
-                </div>
-
-                <button type="button" class="btn-cancel" id="cancel-btn" onclick="cancelTest()">Terminate Process</button>
-            </div>
-
         </div>
     </div>
 
-    <div id="back-btn" onclick="closeReport()">
-        <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
-        Return to Dashboard
-    </div>
-
-    <iframe id="report-frame"></iframe>
-
     <script>
-        function switchTab(mode) {
-            const tabs = ['perf', 'disco', 'history'];
-            tabs.forEach(t => {
-                const section = document.getElementById(`section-${t}`);
-                const btn = document.getElementById(`tab-${t}`);
-                const isActive = t === mode;
-                
-                if (section) section.style.display = isActive ? 'block' : 'none';
-                if (btn) {
-                    btn.style.color = isActive ? 'var(--accent)' : 'var(--text-secondary)';
-                    btn.style.borderBottom = isActive ? '2px solid var(--accent)' : 'none';
-                    btn.style.fontWeight = isActive ? '600' : '500';
-                }
-            });
-
-            if (mode === 'history') loadHistory();
-        }
-
-        async function loadHistory() {
-            const list = document.getElementById('history-list');
-            if (!list) return;
-            list.innerHTML = '<p style="text-align:center; color: var(--text-secondary); margin-top: 2rem;">Fetching past reports...</p>';
-            
-            try {
-                const response = await fetch('/api/reports');
-                const reports = await response.json();
-                
-                if (reports.length === 0) {
-                    list.innerHTML = '<p style="text-align:center; color: var(--text-secondary); margin-top: 2rem;">No historical records found.</p>';
-                    return;
-                }
-
-                list.innerHTML = '';
-                reports.forEach(r => {
-                    const card = document.createElement('div');
-                    card.style.cssText = 'background: rgba(255,255,255,0.03); border: 1px solid var(--surface-border); border-radius: 12px; padding: 1rem; cursor: pointer; transition: var(--transition); display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;';
-                    card.onclick = () => openPastReport(r.url);
-                    
-                    const gradeColor = r.grade === 'A' ? '#10b981' : (r.grade === 'F' ? '#ef4444' : '#f59e0b');
-                    
-                    card.innerHTML = `
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
-                                <span style="background: ${gradeColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 0.75rem;">${r.grade || 'N/A'}</span>
-                                <div style="font-weight: 600; color: white;">${r.name.replace(' Performance Audit', '')}</div>
-                            </div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                                ${r.date} &bull; <span style="color: #10b981;">✅ ${r.passed || 0}</span> <span style="color: #ef4444;">❌ ${r.failed || 0}</span>
-                            </div>
-                        </div>
-                        <div style="text-align: right;">
-                             <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 4px;">${r.duration || 0}s</div>
-                             <svg class="icon" style="width:16px; height:16px; color: var(--accent);" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
-                        </div>
-                    `;
-                    list.appendChild(card);
-                });
-            } catch (err) {
-                list.innerHTML = `<p style="color: var(--error); text-align:center;">Failed to load history.</p>`;
-            }
-        }
-
-        function openPastReport(url) {
-            const frame = document.getElementById("report-frame");
-            frame.src = url;
-            frame.onload = () => {
-                frame.classList.add("visible");
-                document.getElementById("main-container").style.display = "none";
-                document.getElementById("back-btn").style.display = "flex";
-            };
-        }
-
-        async function runDiscovery(e) {
-            e.preventDefault();
-            const url = document.getElementById('disco-url').value;
-            const btn = document.getElementById('disco-btn');
-            const loader = document.getElementById('loader');
-            const statusText = document.getElementById('loading-status');
-            const resultsDiv = document.getElementById('disco-results');
-            const tbody = document.getElementById('disco-table-body');
-
-            btn.disabled = true;
-            loader.classList.add('active');
-            statusText.innerText = "Analyzing Page Elements...";
-            resultsDiv.style.display = "none";
-            tbody.innerHTML = "";
-
-            try {
-                const response = await fetch(`/scan?url=${encodeURIComponent(url)}`);
-                if (!response.ok) throw new Error("Discovery service failed");
-                const data = await response.json();
-                
-                if (data.elements && data.elements.length > 0) {
-                    data.elements.forEach(el => {
-                        const row = document.createElement('tr');
-                        // Corrected field mapping to fixed 'undefined' errors
-                        const role = el.aria_role || el.tag || 'element';
-                        const text = el.aria_name || el.visible_text || 'None';
-                        const hint = el.preferred ? el.preferred.value : 'N/A';
-                        
-                        row.innerHTML = `
-                            <td style="padding: 0.75rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--accent); font-weight:600;">${role}</td>
-                            <td style="padding: 0.75rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff;">${text}</td>
-                            <td style="padding: 0.75rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);"><code style="background:rgba(0,0,0,0.3); padding:2px 4px; border-radius:4px; font-family:monospace; color:#10b981;">${hint}</code></td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    resultsDiv.style.display = "block";
-                } else { alert("No elements found."); }
-            } catch (err) { alert(err.message); } finally {
-                loader.classList.remove('active');
-                btn.disabled = false;
-            }
-        }
-
-        // --- Performance Logic ---
-        const statuses = [
-            "Initializing Distributed Node...",
-            "Preparing Background Orchestrator...",
-            "Spiking Targets...",
-            "Analyzing Scaling Thresholds...",
-            "Computing Final Verdict..."
-        ];
-
-        let statusInterval;
+        let pollInterval = null;
+        let activeTaskId = null;
         let abortController = null;
+        let latestMetricsData = null;
+        let lastReportedStage = "";
+        
+        let timerInterval = null;
+        let elapsedSeconds = 0;
 
-        function closeReport() {
-            const frame = document.getElementById("report-frame");
-            frame.classList.remove("visible");
-            document.getElementById("back-btn").style.display = "none";
-            document.getElementById("main-container").style.display = "block";
-            frame.src = "";
-            if (window.pollingTimer) clearInterval(window.pollingTimer);
+        const DOM = {
+            dot: document.getElementById('conn-dot'),
+            txt: document.getElementById('conn-text'),
+            logs: document.getElementById('log-output'),
+            progBox: document.getElementById('progress-container'),
+            progBar: document.getElementById('progress-bar'),
+            timer: document.getElementById('timer-text'),
+            btnFull: document.getElementById('btn-full'),
+            btnBase: document.getElementById('btn-base'),
+            btnStop: document.getElementById('btn-stop'),
+            btnJson: document.getElementById('btn-exp-json'),
+            btnCsv: document.getElementById('btn-exp-csv'),
+            iframe: document.getElementById('iframe-container'),
+            reportEmpty: document.getElementById('report-empty')
+        };
+
+        // 1. Connection Health & Timer
+        async function checkConnection() {
+            try {
+                const res = await fetch('/health');
+                if (res.ok) {
+                    DOM.dot.className = 'dot connected';
+                    DOM.txt.innerText = 'Online';
+                    DOM.txt.style.color = 'var(--success)';
+                } else throw new Error();
+            } catch (e) {
+                DOM.dot.className = 'dot';
+                DOM.txt.innerText = 'Offline';
+                DOM.txt.style.color = 'var(--error)';
+            }
+        }
+        checkConnection();
+        setInterval(checkConnection, 10000);
+
+        function startTimer() {
+            elapsedSeconds = 0;
+            DOM.timer.innerText = "00:00 s";
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+                const s = String(elapsedSeconds % 60).padStart(2, '0');
+                DOM.timer.innerText = `${m}:${s} s`;
+            }, 1000);
         }
 
-        function cancelTest() {
-            if(abortController) abortController.abort();
-            clearInterval(statusInterval);
-            if (window.pollingTimer) clearInterval(window.pollingTimer);
-            document.getElementById("loader").classList.remove("active");
-            document.getElementById("submit-btn").disabled = false;
+        // 2. Syntax Highlighting & Formatter
+        function syntaxHighlight(json) {
+            if (typeof json != 'string') json = JSON.stringify(json, undefined, 2);
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return '<pre>' + json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) cls = 'json-key';
+                    else cls = 'json-string';
+                } else if (/true|false/.test(match)) cls = 'json-boolean';
+                else if (/null/.test(match)) cls = 'json-boolean';
+                return '<span class="' + cls + '">' + match + '</span>';
+            }) + '</pre>';
+        }
+        
+        function parseEmptyState(obj, modName) {
+            if (!obj || (Array.isArray(obj) && obj.length === 0) || Object.keys(obj).length === 0) {
+                return `<div class="empty-state">
+                    <h3>No Data Generated</h3>
+                    <p>The <b>${modName}</b> tests were not triggered during this execution run. Ensure your configuration flags invoke these modules.</p>
+                </div>`;
+            }
+            return syntaxHighlight(obj);
         }
 
-        async function runTest(e) {
-            e.preventDefault();
-            const btn = document.getElementById("submit-btn");
-            const loader = document.getElementById("loader");
-            const statusText = document.getElementById("loading-status");
+        function switchTab(id) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
+            // Allow multiple elements matching the selector if needed, but here we just target current
+            if(event && event.currentTarget) event.currentTarget.classList.add('active');
+            else document.querySelector(`.tab-btn[onclick="switchTab('${id}')"]`).classList.add('active');
+            
+            document.getElementById('tab-' + id).classList.add('active');
+            
+            if(id === 'history') loadHistory();
+        }
+
+        function appendLog(msg, isErr=false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'log-line';
+            const time = new Date().toLocaleTimeString();
+            wrapper.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg" style="color:${isErr?'var(--error)':'var(--cyan)'}">${msg}</span>`;
+            DOM.logs.appendChild(wrapper);
+            DOM.logs.parentElement.scrollTop = DOM.logs.parentElement.scrollHeight;
+        }
+
+        function setUIState(running) {
+            DOM.btnFull.disabled = running;
+            DOM.btnBase.disabled = running;
+            DOM.btnStop.style.display = running ? 'flex' : 'none';
+            DOM.progBox.style.display = running ? 'flex' : 'none';
+            if(!running) {
+                DOM.progBar.style.width = '0%';
+                if(timerInterval) clearInterval(timerInterval);
+            }
+        }
+
+        // 3. Execution logic
+        async function startExecution(isBaselineOnly) {
+            const url = document.getElementById('target-url').value;
+            if (!url) return alert('Target URL is required');
+
             const payload = {
-                url: document.getElementById("url").value,
-                username: document.getElementById("username").value || null,
-                password: document.getElementById("password").value || null,
-                test_type: document.getElementById("test-type").value,
-                spike_requests: parseInt(document.getElementById("spike-reqs").value) || 0,
-                scalability_plateau: parseInt(document.getElementById("scalability-plateau").value) || 0,
-                email_notification: document.getElementById("notify-email").value || null
+                url: url,
+                test_type: isBaselineOnly ? 'standard' : document.getElementById('test-type').value,
+                dos: isBaselineOnly ? false : document.getElementById('include_dos').checked,
+                include_network: isBaselineOnly ? false : document.getElementById('include_network').checked,
+                include_resources: isBaselineOnly ? false : document.getElementById('include_resources').checked,
+                include_breakpoint: isBaselineOnly ? false : document.getElementById('include_breakpoint').checked
             };
 
-            const journeyRaw = document.getElementById("journey-json").value;
-            if (journeyRaw) {
-                try { payload.journey = JSON.parse(journeyRaw); } catch(err) { alert("Invalid Journey JSON"); return; }
-            }
-
-            btn.disabled = true;
-            loader.classList.add("active");
-            statusText.innerText = statuses[0];
+            setUIState(true);
+            DOM.logs.innerHTML = '';
+            lastReportedStage = "";
+            DOM.iframe.style.display = 'none';
+            DOM.reportEmpty.style.display = 'block';
+            DOM.reportEmpty.innerText = "Analysis running... Report building.";
             
-            let statusIdx = 0;
-            statusInterval = setInterval(() => {
-                statusIdx = Math.min(statusIdx + 1, statuses.length - 1);
-                statusText.innerText = statuses[statusIdx];
-            }, 10000);
+            appendLog(`Initializing test suite for ${url}`);
+            
+            abortController = new AbortController();
+            switchTab('log');
+            startTimer();
 
             try {
-                abortController = new AbortController();
-                const response = await fetch('/run-perf', {
+                const res = await fetch('/run-perf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                     signal: abortController.signal
                 });
+                if (!res.ok) throw new Error("Failed to dispatch execution");
                 
-                if (!response.ok) throw new Error("Backend deployment failure");
-                const data = await response.json();
-
-                if (data.task_id) {
-                    const taskId = data.task_id;
-                    document.getElementById("progress-panel").style.display = "flex";
-                    document.getElementById("loading-subtext").style.display = "none";
-                    document.getElementById("loader-spinner").style.display = "none";
-                    
-                    // NEW: progress bar polling
-                    let lastSuccessUpdate = Date.now();
-                    
-                    window.pollingTimer = setInterval(async () => {
-                        // 🛰️ Pulse check: detect if backend hangs for > 35s
-                        if (Date.now() - lastSuccessUpdate > 35000) {
-                            clearInterval(window.pollingTimer);
-                            document.getElementById("progress-stage").innerText = "⚠️ Connection Timeout / Backend Hung";
-                            document.getElementById("progress-stage").style.color = "var(--error)";
-                            alert("The backend hasn't responded for 35 seconds. This usually means Docker has hung or experienced a resource deadlock. Please restart Docker Desktop.");
-                            cancelTest();
-                            return;
-                        }
-
-                        try {
-                            const pollRes = await fetch(`/progress/${taskId}`);
-                            if (!pollRes.ok) return;
-                            const status = await pollRes.json();
-                            lastSuccessUpdate = Date.now();
-                            
-                            // Update UI
-                            document.getElementById("progress-bar").style.width = status.percent + "%";
-                            document.getElementById("progress-pct").innerText = status.percent + "%";
-                            document.getElementById("progress-stage").innerText = status.stage;
-                            document.getElementById("loading-status").innerText = status.stage;
-                            
-                            if (status.device === "mobile") document.getElementById("progress-device").innerText = "📱 Mobile Mode";
-                            else if (status.device === "tablet") document.getElementById("progress-device").innerText = "平板 Tablet Mode";
-                            else document.getElementById("progress-device").innerText = "💻 Desktop Mode";
-
-                            if (status.status === "complete") {
-                                clearInterval(window.pollingTimer);
-                                document.getElementById("progress-stage").innerText = "Test Complete!";
-                                document.getElementById("progress-bar").style.background = "var(--success)";
-                                
-                                // Show View Report UI
-                                setTimeout(() => {
-                                    document.getElementById("progress-panel").style.display = "none";
-                                    document.getElementById("completion-actions").style.display = "flex";
-                                    document.getElementById("cancel-btn").style.display = "none";
-                                    document.getElementById("view-report-btn").onclick = () => {
-                                        loader.classList.remove("active");
-                                        btn.disabled = false;
-                                        openPastReport(status.report_url);
-                                    };
-                                }, 1500);
-                            } else if (status.status === "error") {
-                                clearInterval(window.pollingTimer);
-                                document.getElementById("progress-stage").innerText = "Error Occurred";
-                                document.getElementById("progress-stage").style.color = "var(--error)";
-                                document.getElementById("progress-bar").style.background = "var(--error)";
-                                alert("Test Error: " + status.error);
-                                cancelTest();
-                            }
-                        } catch (e) { console.error("Poll failed", e); }
-                    }, 1500);
-                } else {
-                    alert("Audit scheduled but no task ID received.");
-                    cancelTest();
-                }
+                const data = await res.json();
+                activeTaskId = data.task_id;
+                appendLog(`Task registered. Orchestrator ID: ${activeTaskId}`);
+                startPolling();
             } catch (err) {
-                if (err.name !== 'AbortError') alert("Critical Error: " + err.message);
-                cancelTest();
+                if (err.name !== 'AbortError') {
+                    appendLog("Error: " + err.message, true);
+                    alert("Execution Error: " + err.message);
+                }
+                setUIState(false);
             }
         }
-    </script>
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            let noDataRepeats = 0;
+
+            pollInterval = setInterval(async () => {
+                if (!activeTaskId) return;
+                try {
+                    const res = await fetch(`/progress/${activeTaskId}`);
+                    if (!res.ok) { noDataRepeats++; return; }
+                    noDataRepeats = 0;
+                    const statusData = await res.json();
+                    
+                    DOM.progBar.style.width = (statusData.percent || 0) + "%";
+
+                    if (statusData.stage && statusData.stage !== lastReportedStage) {
+                        appendLog(statusData.stage, statusData.stage.includes('Error') || statusData.stage.includes('Failed'));
+                        lastReportedStage = statusData.stage;
+                    }
+
+                    if (statusData.status === 'complete' || statusData.status === 'error') {
+                        clearInterval(pollInterval);
+                        onExecutionComplete(statusData.status === 'complete', statusData.report_url);
+                        if (statusData.status === 'error') {
+                            appendLog(`Failed: ${statusData.error}`, true);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Polling error", err);
+                    noDataRepeats++;
+                    if (noDataRepeats > 5) appendLog("Lost connection to task orchestrator.", true);
+                }
+            }, 1000);
+        }
+
+        async function onExecutionComplete(success, reportUrl) {
+            setUIState(false);
+            if (success) {
+                appendLog(`Analysis complete natively in ${elapsedSeconds} seconds.`);
+                
+                // Embed HTML Report dynamically
+                if (reportUrl) {
+                    DOM.iframe.src = reportUrl;
+                    DOM.iframe.style.display = 'block';
+                    DOM.reportEmpty.style.display = 'none';
+                    appendLog("Visual HTML Report is now available in the Final Report tab.");
+                    switchTab('report');
+                }
+
+                // Fetch JSON Metrics for sidebars
+                try {
+                    const mRes = await fetch('/api/metrics');
+                    if (mRes.ok) {
+                        latestMetricsData = await mRes.json();
+                        hydrateSidebars(latestMetricsData);
+                        DOM.btnJson.disabled = false;
+                        DOM.btnCsv.disabled = false;
+                    }
+                } catch(e) { appendLog("Failed pulling /api/metrics: " + e.message, true); }
+            }
+        }
+
+        function hydrateSidebars(data) {
+            const root = data.authenticated || data.anonymous || data;
+            
+            document.getElementById('data-results').innerHTML = parseEmptyState(root.evaluation || root, "Evaluation Stats");
+            
+            const netData = root.network_stress || root.all_requests || [];
+            document.getElementById('data-network').innerHTML = parseEmptyState(netData, "Network Inspection");
+            
+            document.getElementById('data-breakpoint').innerHTML = parseEmptyState(root.ramp_results || root.spike_results || [], "Spike/Breakpoint");
+        }
+
+        function stopExecution() {
+            if (abortController) abortController.abort();
+            clearInterval(pollInterval);
+            setUIState(false);
+            appendLog("Execution forcibly aborted by user action.", true);
+        }
+        
+        // 4. History API
+        async function loadHistory() {
+            const list = document.getElementById('history-list');
+            const emptyEl = document.getElementById('history-empty');
+            
+            list.innerHTML = '<p style="color:var(--text-secondary); text-align:center;">Syncing with embedded database...</p>';
+            
+            try {
+                const res = await fetch('/api/reports');
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    list.innerHTML = '';
+                    emptyEl.style.display = 'block';
+                    return;
+                }
+                
+                emptyEl.style.display = 'none';
+                list.innerHTML = '';
+                
+                data.forEach(report => {
+                    const dt = new Date(report.timestamp ? report.timestamp.replace(' ', 'T') + 'Z' : report.date); // Standardize timezone
+                    const row = document.createElement('div');
+                    row.className = 'history-card';
+                    
+                    // Simple grade coloring map
+                    const grClass = report.grade ? `grade-${report.grade}` : 'grade-F';
+                    
+                    row.innerHTML = `
+                        <div style="flex:1;">
+                            <div style="display:flex; align-items:center; margin-bottom: 4px;">
+                                <span class="grade-badge ${grClass}">${report.grade || '-'}</span>
+                                <strong style="font-size:1.05rem;">${(report.name || 'Audit').replace(' Performance Audit', '')}</strong>
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); display:flex; gap:1rem;">
+                                <span>🗓️ ${dt.toLocaleString()}</span>
+                                <span>✅ ${report.passed || 0} Passes</span>
+                                <span>❌ ${report.failed || 0} Fails</span>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:600; color:var(--text-secondary); font-size:0.9rem;">${report.duration ? parseFloat(report.duration).toFixed(1) : 0}s</div>
+                            <button class="btn btn-secondary" style="padding: 4px 12px; margin-top:4px; font-size:0.75rem;" onclick="window.open('${report.url}', '_blank')">View Report ↗</button>
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
+            } catch (err) {
+                list.innerHTML = `<div class="empty-state" style="color:var(--error)">Error fetching history: ${err.message}</div>`;
+            }
+        }
+
+        // Exports
+        function exportData(type) {
+            if (!latestMetricsData) return;
+            const root = latestMetricsData.authenticated || latestMetricsData.anonymous || latestMetricsData;
+            
+            let blob, fname;
+            if (type === 'json') {
+                blob = new Blob([JSON.stringify(root, null, 2)], { type: 'application/json' });
+                fname = `perf_export_${new Date().getTime()}.json`;
+            } else if (type === 'csv') {
+                let csvRows = ["Metric,Value,Threshold,Verdict"];
+                if (root.evaluation) {
+                    for (const [key, val] of Object.entries(root.evaluation)) {
+                        if (typeof val === 'object' && val !== null) {
+                            csvRows.push(`${key},${val.value},${val.threshold},${val.verdict}`);
+                        }
+                    }
+                }
+                blob = new Blob([csvRows.join("\n")], { type: 'text/csv' });
+                fname = `perf_export_${new Date().getTime()}.csv`;
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fname;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
     </script>
 </body>
 </html>

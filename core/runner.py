@@ -90,6 +90,46 @@ class PerformanceRunner:
             await cdp.send("Network.emulateNetworkConditions", NETWORK_PROFILES[network_profile])
             
         await bp.navigate()
+        print(f"    🚀 Navigated to {self._site.url}")
+
+        # FIX: Capture raw navigation vitals IMMEDIATELY after page load,
+        # before any login / journey / scroll so timing matches Lighthouse.
+        # We wait up to 2s extra for deferred LCP candidates (CSR hydration).
+        await asyncio.sleep(2)
+        browser_vitals = await page.evaluate("""() => {
+            const nav = performance.getEntriesByType('navigation')[0];
+            if (!nav) return {};
+            const t0 = nav.fetchStart;
+
+            // TTFB: pure server response time from the initial document request
+            const ttfb = Math.round(nav.responseStart - t0);
+
+            // FCP: first-contentful-paint entry (relative to nav start)
+            const fcpEntry = performance.getEntriesByName('first-contentful-paint')[0];
+            const fcp = fcpEntry ? Math.round(fcpEntry.startTime) : 0;
+
+            // LCP: last largest-contentful-paint candidate seen so far
+            const lcpEntries = performance.getEntriesByType('largest-contentful-paint');
+            const lcpEntry = lcpEntries.length > 0 ? lcpEntries[lcpEntries.length - 1] : null;
+            const lcp = lcpEntry ? Math.round(lcpEntry.startTime) : 0;
+
+            // TBT: sum of (task_duration - 50ms) for all long tasks
+            const longTasks = performance.getEntriesByType('longtask');
+            const tbt = Math.round(
+                longTasks.reduce((sum, t) => sum + Math.max(0, t.duration - 50), 0)
+            );
+
+            return {
+                fcp,
+                lcp,
+                tbt,
+                ttfb,
+                dom_content_loaded: Math.round(nav.domContentLoadedEventEnd - t0),
+                load_time: Math.round(nav.loadEventEnd - t0),
+            };
+        }""")
+
+        # Now perform interactions (login / journey / scroll) for resource analysis
         auth_speed = 0.0
         if self._site.has_credentials and not anonymous:
             auth_speed = await bp.login(
@@ -102,7 +142,12 @@ class PerformanceRunner:
             await bp.run_journey(self._site.journey)
             
         await bp.scroll_to_bottom()
-        metrics = await bp.get_metrics()
+        
+        collector_metrics = await bp.get_metrics()
+        # Merge: browser_vitals (load timing) wins over collector for timing keys,
+        # but collector keeps resource counts, heap, etc.
+        metrics = {**collector_metrics, **browser_vitals}
+        
         await ctx.close() # Flushes HAR
 
         # Parse HAR for accurate sizes and durations
@@ -126,7 +171,7 @@ class PerformanceRunner:
                         "size": size, "duration": duration, "status": resp.get("status"),
                     })
                 
-                if "all_requests" in metrics:
+                if har_requests:
                     metrics["all_requests"] = har_requests
                     metrics["resource_count"] = len(har_requests)
                     metrics["total_resource_size_kb"] = round(sum(r["size"] for r in har_requests) / 1024, 2)
@@ -158,6 +203,11 @@ class PerformanceRunner:
     async def run_core_metrics(self, anonymous: bool = False, lh_audit_res: dict | None = None) -> tuple[dict, dict, str, float, dict | None]:
         print(f"  📊 Collecting core metrics ({'Public' if anonymous else 'User'}) …")
         metrics, auth_speed = await self._collect_page_metrics(anonymous=anonymous)
+        # NEW: tag result with CSR/SSR detection
+        is_csr = metrics.get("is_csr", False)
+        if is_csr:
+            print(f"  [INFO] CSR site detected — using hydration-aware metrics")
+        
         evaluation = self._evaluator.evaluate(metrics)
         site_grade = self._evaluator.grade(evaluation)
         
@@ -272,7 +322,7 @@ class PerformanceRunner:
             }
             all_levels.append(level)
 
-            broke = error_rate > self._safe_float(thresholds["error_rate_pct"]) or self._safe_float(p95) > self._safe_float(thresholds["p95_load_time"])
+            broke = error_rate > self._safe_float(thresholds.get("error_rate_pct", 10)) or self._safe_float(p95) > self._safe_float(thresholds.get("p95_load_time", 3000))
             status = f"❌ BREAK (err={self._safe_float(error_rate):.0f}% p95={self._safe_float(p95):.0f}ms)" if broke else "✅"
             print(status)
             if broke:
@@ -300,7 +350,6 @@ class PerformanceRunner:
                 crash_results[n] = "failed"
                 continue
                 
-            # Averaging Logic: Median for FCP/LCP
             fcp_vals = sorted(v.get("fcp", 0) for v in valid if isinstance(v.get("fcp"), (int, float)))
             lcp_vals = sorted(v.get("lcp", 0) for v in valid if isinstance(v.get("lcp"), (int, float)))
             
@@ -312,7 +361,6 @@ class PerformanceRunner:
             median_fcp = get_median(fcp_vals)
             median_lcp = get_median(lcp_vals)
             
-            # Resource Monitoring
             avg_heap = sum(v.get("js_heap_used_mb", 0) for v in valid) / len(valid)
             avg_res_count = sum(v.get("resource_count", 0) for v in valid) / len(valid)
 
@@ -325,7 +373,6 @@ class PerformanceRunner:
             }
             print(f"done | Median LCP: {median_lcp:.0f}ms | Avg Heap: {avg_heap:.1f}MB")
 
-        # Visual Console Output for Plotting
         print(f"\n  📊 RESPONSE TIME VS USER COUNT (CRASH TEST RESULTS)")
         print(f"  {'Users':<8} | {'Median LCP (ms)':<15} | {'Heap (MB)':<10} | {'Success'}")
         print(f"  {'-'*45}")
@@ -344,6 +391,8 @@ class PerformanceRunner:
             page.on("request", lambda req: requests.append(req))
             await page.goto(self._site.url, wait_until="networkidle", timeout=30000)
             resource_group = await page.evaluate("""() => {
+                const nav = performance.getEntriesByType('navigation')[0];
+                const origin = nav ? nav.fetchStart : 0;
                 const resources = performance.getEntriesByType('resource');
                 const groups = {};
                 resources.forEach(r => {
@@ -361,7 +410,6 @@ class PerformanceRunner:
                     groups[type]._total_duration += r.duration || 0;
                     groups[type].avg_duration_ms = groups[type]._total_duration / groups[type].count;
                 });
-                // Remove internal accumulator before returning
                 Object.values(groups).forEach(g => delete g._total_duration);
                 return groups;
             }""")
@@ -422,9 +470,9 @@ class PerformanceRunner:
         samples = []
         end_plateau = time.monotonic() + (plateau_minutes * 60)
         while time.monotonic() < end_plateau:
-            res, _, _, _ = await self.run_core_metrics(anonymous=anonymous)
+            res, _, _, _, _ = await self.run_core_metrics(anonymous=anonymous)
             samples.append(self._safe_float(res.get("ttfb", 0)))
-            await asyncio.sleep(60) # Sample every minute
+            await asyncio.sleep(60)
             
         avg_plateau_ttfb = round(self._safe_float(statistics.mean(samples)), 1) if samples else 0
         print(f"done (Avg Plateau TTFB: {avg_plateau_ttfb}ms)")
@@ -449,8 +497,6 @@ class PerformanceRunner:
         modes = ["anonymous", "authenticated"] if self._site.has_credentials else ["anonymous"]
         final_results = {}
         
-        # 🎯 OPTIMIZATION: Run Lighthouse ONLY ONCE per site run.
-        # This saves ~40s per run without losing any data.
         lh_audit_res = None
         if LighthouseComparator.is_available():
             lh_audit_res = await LighthouseComparator.run_audit(self._site.url, timeout=90)
@@ -463,9 +509,9 @@ class PerformanceRunner:
                     args=[
                         "--disable-extensions", 
                         "--no-sandbox",
-                        "--disable-dev-shm-usage",           # Prevents restricted memory segment crashes
-                        "--js-flags=--max-old-space-size=512", # Assign 512MB of RAM to V8 Engine (Sane limit for concurrency)
-                        "--disk-cache-size=1073741824"       # Allocate 1GB to local disk cache
+                        "--disable-dev-shm-usage",
+                        "--js-flags=--max-old-space-size=512",
+                        "--disk-cache-size=1073741824"
                     ],
                 )
                 try:
@@ -473,11 +519,8 @@ class PerformanceRunner:
                     if len(modes) > 1:
                         print(f"\n  [{modes.index(mode)+1}/{len(modes)}] {'🕵️ Anonymous (Public Traffic)' if anon else '🔐 Authenticated (Private Traffic)'}")
                         
-                    # 1. Core Performance & Lighthouse Comparison
-                    # This provides the single-run metrics used for report grading
                     metrics, eval_res, grade, auth_speed, lh_comp = await self.run_core_metrics(anonymous=anon, lh_audit_res=lh_audit_res)
                     
-                    # 2. Network/Stress Tests
                     spike_res = None
                     if spike_requests > 0 and should_run("spike"):
                         spike_res = await self.run_spike(spike_requests, anonymous=anon)
@@ -503,12 +546,13 @@ class PerformanceRunner:
                         "scalability_results": scalability_res,
                         "resource_groups": rg,
                         "all_requests": reqs,
-                        "lighthouse_comparison": lh_comp # NEW: improvement 2
+                        "lighthouse_comparison": lh_comp,
+                        "is_csr": metrics.get("is_csr", False),
+                        "csr_hydration_ms": metrics.get("csr_hydration_ms", 0),
                     }
 
                 except Exception as e:
                     print(f"  [CRITICAL] Error in mode '{mode}': {e}")
-                    # Add empty fallback to allow reporter loop to continue
                     final_results[mode] = {
                         "evaluation": {}, "grade": "F", "auth_speed": 0.0,
                         "baseline_stats": {}, "network_stress": {}, "ramp_results": [],
@@ -519,27 +563,19 @@ class PerformanceRunner:
                         await self._browser.close()
                         self._browser = None
 
-        # Post-process: Generate report
         duration = time.monotonic() - t0
         date_str = datetime.now().strftime("%Y-%m-%d")
         report_name = f"{self._site.name.replace(' ', '_').lower()}_report.html"
         report_dir = Path(self._report_dir) / date_str
         report_path = report_dir / report_name
         
-        # Ensure report directory exists
         report_dir.mkdir(parents=True, exist_ok=True)
         
         rel_url = f"/reports/{date_str}/{report_name}"
         
-        self._reporter.generate(
-            site_name=self._site.name,
-            site_url=self._site.url,
-            results=final_results,
-            output_path=report_path,
-            duration_seconds=duration
-        )
-
-        return report_path
+        # Note: Report generation is now handled asynchronously in run.py
+        # to prevent blocking the test loop for multiple sites.
+        pass
 
         try:
             # Use the first available mode for the main grade/stats
@@ -548,6 +584,12 @@ class PerformanceRunner:
             ev = main_data.get("evaluation", {})
             passes = sum(1 for v in ev.values() if v.get("verdict") == "PASS")
             fails  = sum(1 for v in ev.values() if v.get("verdict") == "FAIL")
+
+            from interactions.playbook_runner import run_interaction
+            creds = {"username": self._site.credentials.username, "password": self._site.credentials.password} if self._site.credentials else {}
+            i_count = getattr(self._site, "options", {}).get("interaction_count", 1)
+            i_res = await run_interaction(self._site.url, credentials=creds, count=i_count)
+            i_data = i_res.as_dict() if i_res else {}
 
             from helpers.db_service import DBService
             DBService.log_report(
@@ -558,7 +600,8 @@ class PerformanceRunner:
                 grade=main_data.get("grade", "F"),
                 passed=passes,
                 failed=fails,
-                duration=round(self._safe_float(duration), 2)
+                duration=round(self._safe_float(duration), 2),
+                **i_data
             )
         except Exception as db_err:
             print(f"  [WARN] Failed to log report to database: {db_err}")

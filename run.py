@@ -36,7 +36,60 @@ from reporters.json_reporter import JSONReporter
 
 CONFIG_PATH = ROOT / "config" / "sites.json"
 
+import http.server
+import threading
+import webbrowser
+import json
+from hashlib import md5
+from concurrent.futures import ThreadPoolExecutor
+
 from core.runner import PerformanceRunner
+
+# ══════════════════════════════════════════════════════════════════════════
+#   Dashboard Server Logic
+# ══════════════════════════════════════════════════════════════════════════
+
+class DashboardHandler(http.server.SimpleHTTPRequestHandler):
+    """Custom handler for the live performance dashboard."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def do_GET(self):
+        if self.path == "/report":
+            # Stable URL for the latest report
+            self.path = "/latest_report.html"
+        elif self.path == "/api/report-ready":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            latest = ROOT / "latest_report.html"
+            mtime = os.path.getmtime(latest) if latest.exists() else 0
+            # Simple version hash based on file modification time
+            self.wfile.write(json.dumps({"hash": md5(str(mtime).encode()).hexdigest()}).encode())
+            return
+        elif self.path == "/api/metrics":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            metrics_file = ROOT / "latest_results.json"
+            if metrics_file.exists():
+                self.wfile.write(metrics_file.read_bytes())
+            else:
+                self.wfile.write(json.dumps({"status": "waiting"}).encode())
+            return
+        return super().do_GET()
+
+    def log_message(self, format, *args):
+        # Silence logs to keep terminal clean
+        return
+
+def start_dashboard_server(port: int):
+    """Starts the built-in HTTP server in a background thread."""
+    server = http.server.HTTPServer(("0.0.0.0", port), DashboardHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"  🏁 Live Dashboard: http://localhost:{port}/report")
+    return port
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -76,6 +129,9 @@ def main() -> None:
                         help="Start the Locator Discovery API server")
     parser.add_argument("--port", type=int, default=8000,
                         help="Port for the API server (default: 8000)")
+    parser.add_argument("--dashboard", "-d", action="store_true",
+                        help="Launch live auto-reloading dashboard and open browser")
+    parser.add_argument("--dos", action="store_true", help="R&D DoS ramp test (localhost only)")
     args = parser.parse_args()
 
     # ── Mode: Serve API ──────────────────────────────────────────────────
@@ -163,6 +219,15 @@ def main() -> None:
     print(f"   Ramp steps: {args.ramp}")
     print(f"   Format    : {args.format}")
     print(f"   Reports   : {args.report_dir}/")
+    
+    if args.dashboard:
+        start_dashboard_server(args.port)
+
+    # Use a thread pool for non-blocking report generation
+    _report_executor = ThreadPoolExecutor(max_workers=2)
+
+    def trigger_report_gen(site_name, site_url, results, path):
+        _report_executor.submit(reporter.generate, site_name, site_url, results, Path(path))
 
     async def run_all_sites():
         if args.soak > 0:
@@ -183,6 +248,16 @@ def main() -> None:
                     res = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
                     path = res[0] if isinstance(res, tuple) else res
                     generated.append((site.name, path))
+
+                    final_results = res[1] if isinstance(res, tuple) else {}
+                    if args.dos:
+                        from core.dos_tester import DoSTester
+                        print(f"\n🔴 DoS Ramp Test for {site.name} (R&D only)")
+                        tester = DoSTester(url=site.url)
+                        dos_res = await tester.run_ramp(levels=[10, 50, 100, 200, 500, 1000, 2000], duration_per_level=8)
+                        main_mode = "authenticated" if "authenticated" in final_results else "anonymous"
+                        if main_mode in final_results:
+                            final_results[main_mode]["dos_results"] = dos_res
                 
                 print(f"--- Iteration {iteration} complete. Sleeping 60s to flush memory buffers. ---")
                 await asyncio.sleep(60)
@@ -202,8 +277,24 @@ def main() -> None:
             )
             res = await runner.run_all(enabled_tests=enabled, spike_requests=args.spike)
             path = res[0] if isinstance(res, tuple) else res
-            generated.append((site.name, path))
             
+            final_results = res[1] if isinstance(res, tuple) else {}
+            if args.dos:
+                from core.dos_tester import DoSTester
+                print(f"\n🔴 DoS Ramp Test for {site.name} (R&D only)")
+                tester = DoSTester(url=site.url)
+                dos_res = await tester.run_ramp(levels=[10, 50, 100, 200, 500, 1000, 2000], duration_per_level=8)
+                main_mode = "authenticated" if "authenticated" in final_results else "anonymous"
+                if main_mode in final_results:
+                    final_results[main_mode]["dos_results"] = dos_res
+
+            # Fire report generation in a background thread
+            trigger_report_gen(site.name, site.url, results=final_results, path=path)
+            
+            if args.dashboard:
+                webbrowser.open(f"http://localhost:{args.port}/report")
+
+            generated.append((site.name, path))
         # Create a root index.html for live GitHub Pages deployment natively
         if generated and args.format == "html":
             idx = Path(args.report_dir) / "index.html"
@@ -211,6 +302,12 @@ def main() -> None:
             html = f'''<!DOCTYPE html><html><body style="background:#0B1120;color:#F8FAFC;font-family:sans-serif;padding:3rem;">
             <h1 style="margin-bottom:2rem;">Performance Framework Hub</h1><ul>{links}</ul></body></html>'''
             idx.write_text(html, encoding="utf-8")
+
+        # Keep server alive if dashboard is running
+        if args.dashboard:
+            print("\n📊 Dashboard is active. Press Ctrl+C to stop.")
+            while True:
+                await asyncio.sleep(1)
 
     asyncio.run(run_all_sites())
     print("\n✅  All done.\n")

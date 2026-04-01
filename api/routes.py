@@ -69,12 +69,21 @@ async def scan_url(
     return response
 
 
-from utils.db_service import DBService
+from helpers.db_service import DBService
 
 @router.get("/api/reports")
 async def list_reports():
     """Lists all generated HTML reports from the database."""
     return DBService.get_all_reports()
+
+
+@router.get("/api/metrics")
+async def get_metrics():
+    """Returns the latest performance metrics JSON."""
+    metrics_file = PROJECT_ROOT / "latest_results.json"
+    if metrics_file.exists():
+        return json.loads(metrics_file.read_text())
+    return {"status": "waiting"}
 
 
 @router.get("/health")
@@ -103,11 +112,12 @@ class PerfRequest(BaseModel):
     password: Optional[str] = None
     journey: Optional[List[Dict]] = None
     
-    # New Fields for Enterprise Orchestration
-    test_type: Optional[str] = "standard"  # standard, spike, soak, scalability
-    spike_requests: Optional[int] = 0
-    scalability_plateau: Optional[int] = 0
+    test_type: str = "standard"
+    interaction_count: int = 1
+    spike_requests: int = 0
+    scalability_plateau: int = 0
     email_notification: Optional[str] = None
+    dos: bool = False
 
 
 async def _background_perf_task(req: PerfRequest, report_id: str, task_id: str):
@@ -141,6 +151,11 @@ async def _background_perf_task(req: PerfRequest, report_id: str, task_id: str):
         if req.test_type == "spike": enabled = {"standard", "spike"}
         elif req.test_type == "scalability": enabled = {"standard", "scalability"}
 
+        # NEW: Lighthouse audit progress stage
+        from utils.lighthouse_comparator import LighthouseComparator
+        if LighthouseComparator.is_available():
+            progress_store[task_id].update({"percent": 25, "stage": "🔦 Running Lighthouse audit (ground truth)..."})
+        
         # Perform the actual run - simulate progress jumps based on stages
         # Logic jump: Skip mobile/tablet as they aren't in current core.runner.py
         progress_store[task_id].update({"percent": 45, "stage": "Preparing suite..."})
@@ -153,8 +168,36 @@ async def _background_perf_task(req: PerfRequest, report_id: str, task_id: str):
             scalability_plateau=req.scalability_plateau or 0
         )
         report_path, final_results = res if isinstance(res, tuple) else (res, {})
+
+        # NEW: R&D DoS Stress Test (if enabled)
+        if req.dos:
+            from core.dos_tester import DoSTester
+            
+            def progress_logger(msg: str):
+                # Update stage with the current wave info (must be sync — DoSTester calls self.log() synchronously)
+                progress_store[task_id].update({"stage": f"🔴 {msg}"})
+            
+            progress_store[task_id].update({"percent": 90, "stage": "🔴 Initiating DoS Ramp (R&D Only)..."})
+            tester = DoSTester(url=site.url, output_fn=progress_logger)
+            dos_res = await tester.run_ramp(levels=[10, 50, 100, 200, 500, 1000, 2000], duration_per_level=8)
+            
+            main_mode = "authenticated" if isinstance(final_results, dict) and "authenticated" in final_results else "anonymous"
+            if isinstance(final_results, dict) and main_mode in final_results:
+                final_results[main_mode]["dos_results"] = dos_res
         
-        progress_store[task_id].update({"percent": 98, "stage": "Generating report..."})
+        progress_store[task_id].update({"percent": 98, "stage": "Generating visual HTML report..."})
+
+        # Ensure the HTML report is actually generated on disk during dashboard runs
+        from reporters.html_reporter import HTMLReporter
+        try:
+            HTMLReporter().generate(
+                site_name=site.name, 
+                site_url=site.url, 
+                results=final_results if isinstance(final_results, dict) else {},
+                output_path=report_path
+            )
+        except Exception as e:
+            print(f"  [WARN] Dashboard failed to generate HTML Report: {e}")
 
         # Notify via Email with critical highlights
         if req.email_notification:
