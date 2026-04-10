@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Perf Report — My App</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+  
+  :root {
+    --bg-color: #0d1117;
+    --card-bg: rgba(22, 27, 34, 0.8);
+    --card-border: rgba(48, 54, 61, 1);
+    --text-main: #c9d1d9;
+    --text-bright: #f0f6fc;
+    --text-muted: #8b949e;
+    --teal: #00d9a6;
+    --red: #ff4466;
+    --amber: #ffaa00;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+  
+  header { margin-bottom: 3rem; }
+  h1 { font-size: 2.5rem; font-weight: 800; color: var(--text-bright); margin-bottom: 0.5rem; }
+  .subtitle { color: var(--text-muted); font-size: 1.1rem; }
+  
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 0;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .card:nth-child(1) { animation-delay: 0.1s; }
+  .card:nth-child(2) { animation-delay: 0.2s; }
+  .card:nth-child(3) { animation-delay: 0.3s; }
+  
+  h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-bright); margin: 2rem 0 1rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.75rem; }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--card-border); }
+
+  .status-pill { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+  .status-PASS { background: rgba(0, 217, 166, 0.15); color: var(--teal); border: 1px solid var(--teal); }
+  .status-FAIL { background: rgba(255, 68, 102, 0.15); color: var(--red); border: 1px solid var(--red); }
+  .status-WARN { background: rgba(255, 170, 0, 0.15); color: var(--amber); border: 1px solid var(--amber); }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .metric-card { border-left: 4px solid var(--card-border); }
+  .metric-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.5rem; display: block; }
+  .metric-value { font-family: 'IBM Plex Mono', monospace; font-size: 1.75rem; font-weight: 700; color: var(--text-bright); }
+  .metric-target { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+  .table-wrapper { width: 100%; overflow-x: auto; margin-top: 1rem; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th { padding: 0.75rem 1rem; color: var(--text-muted); border-bottom: 1px solid var(--card-border); font-size: 0.8rem; text-transform: uppercase; }
+  td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(48, 54, 61, 0.5); font-size: 0.95rem; }
+  
+  .fix-section { background: rgba(255, 68, 102, 0.05); border: 1px solid rgba(255, 68, 102, 0.2); }
+  .fix-row { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px dashed var(--card-border); }
+  .fix-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .fix-gap { font-weight: 700; color: var(--red); margin-bottom: 0.5rem; }
+  .suggestion-pill { font-size: 0.7rem; font-weight: 700; background: #30363d; color: var(--text-main); padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+
+  @media print {
+    body { background: white; color: black; padding: 0; }
+    .card { border: 1px solid #ddd; box-shadow: none; animation: none; opacity: 1; }
+    .metric-value { color: black; }
+  }
+
+  /* ── Lighthouse Comparator ──────────────────────────────── */
+  .lh-section { border: 1px solid rgba(99, 179, 237, 0.3); background: rgba(99, 179, 237, 0.04); }
+  .lh-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+  .lh-score-ring {
+    position: relative; width: 90px; height: 90px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(var(--ring-color, #00d9a6) var(--ring-pct, 0%), rgba(48,54,61,0.6) 0%);
+  }
+  .lh-score-ring-inner {
+    position: absolute; width: 70px; height: 70px; border-radius: 50%;
+    background: var(--card-bg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .lh-score-pct { font-family: 'IBM Plex Mono', monospace; font-size: 1.15rem; font-weight: 700; color: var(--text-bright); }
+  .lh-score-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .lh-badge-na { background: rgba(139,148,158,0.15); color: #8b949e; border: 1px solid #30363d;
+    border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+  .lh-row-accurate td { background: rgba(0, 217, 166, 0.04); }
+  .lh-row-drift   td { background: rgba(255, 170, 0, 0.04); }
+  .lh-row-na      td { background: transparent; }
+  .lh-diff-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+  }
+  .lh-score-lh { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+</style>
+<script>
+    let currentHash = null;
+    async function checkUpdate() {
+        try {
+            const resp = await fetch('/api/report-ready');
+            const data = await resp.json();
+            if (currentHash && data.hash !== currentHash) { window.location.reload(); }
+            currentHash = data.hash;
+        } catch (e) {}
+    }
+    setInterval(checkUpdate, 5000);
+</script>
+</head><body><div class="container"><header><h1>Executive Reliability Audit</h1><p class="subtitle">Analysis for <b>My App</b> • April 10, 2026 at 04:54 AM</p></header>
+            <h2>Reliability Dimensions</h2><section class="card"><div class="table-wrapper"><table><thead><tr><th>Dimension</th><th>Status</th><th>Explanation</th></tr></thead><tbody><tr><td><strong>Availability</strong></td><td><span class='status-pill status-PASS'>Good</span></td><td>Evaluated against Availability thresholds.</td></tr><tr><td><strong>Consistency</strong></td><td><span class='status-pill status-PASS'>Good</span></td><td>Evaluated against Consistency thresholds.</td></tr><tr><td><strong>UX Reliability</strong></td><td><span class='status-pill status-PASS'>Good</span></td><td>Evaluated against UX Reliability thresholds.</td></tr><tr><td><strong>Frontend Stability</strong></td><td><span class='status-pill status-PASS'>Good</span></td><td>Evaluated against Frontend Stability thresholds.</td></tr><tr><td><strong>Capacity Confidence</strong></td><td><span class='status-pill status-FAIL'>Poor</span></td><td>Evaluated against Capacity Confidence thresholds.</td></tr><tr><td><strong>VERDICT</strong></td><td><span class='status-pill status-PASS'>RELIABLE</span></td><td>System overall stability assessment.</td></tr></tbody></table></div></section> <h2>User Experience Metrics</h2><section class="card"><div class="metrics-grid"></div></section>      <h2>📚 Technical Glossary</h2><section class="card"><div class="table-wrapper"><table><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">TTFB</td><td><b>Time to First Byte</b>: Measures server responsiveness. High TTFB usually means slow DB queries or lack of server caching.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">FCP</td><td><b>First Contentful Paint</b>: When the browser renders the first bit of content. Crucial for user perceived speed.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">LCP</td><td><b>Largest Contentful Paint</b>: When the main content (hero image/text) is visible. Target: < 2.5s.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">CLS</td><td><b>Cumulative Layout Shift</b>: Measures visual stability. Avoid unexpected layout jumps by setting image dimensions.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">TBT</td><td><b>Total Blocking Time</b>: How long the main thread was 'frozen' by heavy JS, preventing user interaction.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">INP</td><td><b>Interaction to Next Paint</b>: Measures how quickly the page responds to clicks and keypresses throughout its life.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">RPS</td><td><b>Requests Per Second</b>: The throughput of your server. High RPS means your backend can handle many concurrent users simultaneously.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">Latency</td><td><b>Network Ping / Latency</b>: The time taken for an API trace or network request to travel from server to user. Over 1000ms is a warning.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">P95</td><td><b>95th Percentile Latency</b>: The maximum response time for 95% of users. Removes extreme outliers to give a reliable 'worst-case' speed.</td></tr><tr><td style="width:120px; font-weight:700; color:var(--text-bright)">Concurrency</td><td><b>Concurrent Workers</b>: Parallel connections executing simultaneously inside the browser or network to test threshold limitations.</td></tr></table></div></section><h2>🛠️ Strategic Optimization Guide</h2><section class="card"><div class="metrics-grid"><div class="card" style="border-left: 2px solid var(--amber);"><b style="color:var(--text-bright); display:block; margin-bottom:0.5rem">⚡ Server Side</b><p style="font-size:0.85rem; color:var(--text-muted)">Use Redis caching and Cloudflare CDN to drop TTFB below 200ms.</p></div><div class="card" style="border-left: 2px solid var(--amber);"><b style="color:var(--text-bright); display:block; margin-bottom:0.5rem">🖼️ Visual Assets</b><p style="font-size:0.85rem; color:var(--text-muted)">Use WebP/Avif formats and set explicit width/height to fix CLS.</p></div><div class="card" style="border-left: 2px solid var(--amber);"><b style="color:var(--text-bright); display:block; margin-bottom:0.5rem">📜 Script Loading</b><p style="font-size:0.85rem; color:var(--text-muted)">Use 'defer' for non-critical JS to reduce TBT and improve INP.</p></div><div class="card" style="border-left: 2px solid var(--amber);"><b style="color:var(--text-bright); display:block; margin-bottom:0.5rem">☁️ Infrastructure</b><p style="font-size:0.85rem; color:var(--text-muted)">Enable Brotli compression and HTTP/2 to slash resource transfer times.</p></div></div></section></div></body></html>
